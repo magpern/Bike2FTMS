@@ -75,13 +75,11 @@
 #include "ble_conn_params.h"
 #include "ble_srv_common.h"
 #include "ble_advdata.h"
-#include "ble_hrs.h"
 #include "ble_dis.h"
 #include "bsp.h"
 #include "fds.h"
 #include "peer_manager.h"
 #include "peer_manager_handler.h"
-#include "sensorsim.h"
 #include "nrf_ble_gatt.h"
 #include "nrf_sdh.h"
 #include "nrf_sdh_ble.h"
@@ -145,7 +143,6 @@
 
 static volatile uint16_t                m_conn_handle = BLE_CONN_HANDLE_INVALID;     /**< Handle of the current connection. */
 static uint8_t                          m_adv_handle;                                /**< Advertising handle. */
-BLE_HRS_DEF(m_hrs);                                                                  /**< Heart rate service instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                              /**< Context for the Queued Write module.*/
 NRF_BLE_GATT_DEF(m_gatt);                                                            /**< GATT module instance. */
 
@@ -257,9 +254,6 @@ static void gap_params_init(void)
 
     err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_CYCLING_POWER_SENSOR);
 
-    err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_HEART_RATE_SENSOR_HEART_RATE_BELT);
-    APP_ERROR_CHECK(err_code);
-
     memset(&gap_conn_params, 0, sizeof(gap_conn_params));
 
     gap_conn_params.min_conn_interval = MIN_CONN_INTERVAL;
@@ -350,10 +344,8 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
 static void services_init(void)
 {
     uint32_t           err_code;
-    ble_hrs_init_t     hrs_init;
     ble_dis_init_t     dis_init;
     nrf_ble_qwr_init_t qwr_init = {0};
-    uint8_t            body_sensor_location;
 
     // Initialize the Queued Write module.
     qwr_init.error_handler = nrf_qwr_error_handler;
@@ -368,24 +360,6 @@ static void services_init(void)
     }
     APP_ERROR_CHECK(err_code);
     
-    
-
-    // Initialize Heart Rate Service.
-    body_sensor_location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
-
-    memset(&hrs_init, 0, sizeof(hrs_init));
-
-    hrs_init.evt_handler                 = NULL;
-    hrs_init.is_sensor_contact_supported = false;
-    hrs_init.p_body_sensor_location      = &body_sensor_location;
-
-    // Here the sec level for the Heart Rate Service can be changed/increased.
-    hrs_init.hrm_cccd_wr_sec = SEC_OPEN;
-    hrs_init.bsl_rd_sec      = SEC_OPEN;
-
-    err_code = ble_hrs_init(&m_hrs, &hrs_init);
-    APP_ERROR_CHECK(err_code);
-
     // Initialize Device Information Service
     memset(&dis_init, 0, sizeof(dis_init));
 
@@ -451,7 +425,6 @@ static void conn_params_init(void)
     cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
     cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
     cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
-    cp_init.start_on_notify_cccd_handle    = m_hrs.hrm_handles.cccd_handle;
     cp_init.disconnect_on_fail             = false;
     cp_init.evt_handler                    = on_conn_params_evt;
     cp_init.error_handler                  = conn_params_error_handler;
