@@ -2,8 +2,6 @@
 #include "ble_srv_common.h"
 #include "nrf_log.h"
 
-#define BLE_FTMS_FEATURES (0x00000000)  // Define supported FTMS features
-
 /**@brief Function for adding the Indoor Bike Data Characteristic */
 static uint32_t indoor_bike_data_char_add(ble_ftms_t * p_ftms) {
     ble_add_char_params_t add_char_params = {0};
@@ -64,6 +62,32 @@ static uint32_t machine_status_char_add(ble_ftms_t * p_ftms) {
     return err_code;
 }
 
+/**@brief Function for adding the FTMS Feature characteristic */
+uint32_t ble_ftms_feature_char_add(ble_ftms_t * p_ftms) {
+    ble_add_char_params_t add_char_params = {0};
+    static uint8_t featureData[8];  // 8-byte array for FTMS Feature Characteristic
+
+    // ✅ Convert values to little-endian byte format
+    uint32_t features = BLE_FTMS_FEATURES;
+    uint32_t targetSettings = BLE_FTMS_TARGET_SETTINGS;
+    memcpy(&featureData[0], &features, sizeof(features));
+    memcpy(&featureData[4], &targetSettings, sizeof(targetSettings));
+
+    add_char_params.uuid              = BLE_UUID_FTMS_FEATURE_CHAR;
+    add_char_params.uuid_type         = BLE_UUID_TYPE_BLE;
+    add_char_params.init_len          = sizeof(featureData);
+    add_char_params.max_len           = sizeof(featureData);
+    add_char_params.char_props.read   = 1;
+    add_char_params.is_var_len        = false;
+    add_char_params.read_access       = SEC_OPEN;
+    add_char_params.p_init_value      = featureData;  // ✅ Store the feature bitmask
+
+    NRF_LOG_INFO("Adding FTMS Feature Characteristic: UUID=0x%04X, Features=0x%08X, TargetSettings=0x%08X",
+        BLE_UUID_FTMS_FEATURE_CHAR, features, targetSettings);
+
+    return characteristic_add(p_ftms->service_handle, &add_char_params, &p_ftms->ftms_feature_handles);
+}
+
 /**@brief Function for initializing the FTMS service. */
 uint32_t ble_ftms_init(ble_ftms_t * p_ftms) {
     uint32_t err_code;
@@ -93,6 +117,9 @@ uint32_t ble_ftms_init(ble_ftms_t * p_ftms) {
     err_code = machine_status_char_add(p_ftms);
     if (err_code != NRF_SUCCESS) return err_code;
     
+    err_code = ble_ftms_feature_char_add(p_ftms);
+    if (err_code != NRF_SUCCESS) return err_code;
+
     return NRF_SUCCESS;
 }
 

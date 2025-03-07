@@ -15,6 +15,21 @@
 #define BLE_UUID_INDOOR_BIKE_DATA_CHAR  0x2AD2
 #define BLE_UUID_TRAINING_STATUS_CHAR   0x2AD3
 #define BLE_UUID_FITNESS_MACHINE_STATUS_CHAR  0x2ADA
+#define BLE_UUID_FTMS_FEATURE_CHAR      0x2ACC  // ✅ NEW: FTMS Feature Characteristic
+
+#define BLE_FTMS_FEATURE_AVG_SPEED_SUPPORTED         (1 << 0)
+#define BLE_FTMS_FEATURE_CADENCE_SUPPORTED           (1 << 1)
+#define BLE_FTMS_FEATURE_INCLINATION_SUPPORTED       (1 << 3)
+#define BLE_FTMS_FEATURE_RESISTANCE_SUPPORTED        (1 << 7)
+#define BLE_FTMS_FEATURE_POWER_MEASUREMENT_SUPPORTED (1 << 14)
+
+#define BLE_FTMS_FEATURES  ( \
+    BLE_FTMS_FEATURE_CADENCE_SUPPORTED | \
+    BLE_FTMS_FEATURE_POWER_MEASUREMENT_SUPPORTED \
+)
+
+// Target settings (default = none)
+#define BLE_FTMS_TARGET_SETTINGS  0x00000000
 
 /**@brief FTMS Data Structure */
 typedef struct {
@@ -38,6 +53,7 @@ typedef struct {
     ble_gatts_char_handles_t   indoor_bike_data_handles;
     ble_gatts_char_handles_t   training_status_handles;
     ble_gatts_char_handles_t   fitness_machine_status_handles;
+    ble_gatts_char_handles_t   ftms_feature_handles;
     uint16_t                  conn_handle;
 } ble_ftms_t;
 
