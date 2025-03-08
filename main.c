@@ -102,6 +102,7 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#include "app_timer.h"
 
 #define WAKEUP_BUTTON_ID                0                                            /**< Button used to wake up the application. */
 #define BOND_DELETE_ALL_BUTTON_ID       1                                            /**< Button used for deleting all bonded centrals during startup. */
@@ -140,6 +141,7 @@
 #define ANT_BPWR_DEVICE_NUMBER         18465                                            /**< Device Number. */
 #define ANT_BPWR_TRANS_TYPE            5                                            /**< Transmission Type. */
 #define ANTPLUS_NETWORK_NUMBER          0                                            /**< Network number. */
+#define ANT_PLUS_NETWORK_KEY ((uint8_t[8]){0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45})
 
 static volatile uint16_t                m_conn_handle = BLE_CONN_HANDLE_INVALID;     /**< Handle of the current connection. */
 static uint8_t                          m_adv_handle;                                /**< Advertising handle. */
@@ -152,7 +154,13 @@ static ble_ftms_t m_ftms;  // BLE FTMS Service Instance
 static ant_bpwr_profile_t m_ant_bpwr; /* ANT Bike/Power profile instance */
 // Forward declaration of ANT BPWR event handler
 static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t event);
+// Register BLE & ANT event handlers
+// Forward declarations
+static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context);
+static void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context);
 
+NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NULL);
 
 NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
 
@@ -163,6 +171,16 @@ static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
     .p_cb        = &m_ant_bpwr_disp_cb,
     .evt_handler = ant_bpwr_evt_handler,
 };
+
+APP_TIMER_DEF(m_adv_restart_timer);  // Timer to restart advertising
+
+static void advertising_start(void);  // Forward declare function
+
+static void adv_restart_timeout_handler(void * p_context)
+{
+    NRF_LOG_INFO("⏰ Timer expired - Restarting BLE Advertising...");
+    advertising_start();  // Restart BLE advertising
+}
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -197,27 +215,45 @@ static void advertising_start(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
-/**@brief Start receiving the ANT PWR data. */
 static void ant_bpwr_rx_start(void)
 {
     uint32_t err_code;
 
     NRF_LOG_INFO("🔄 Initializing ANT+ BPWR Channel...");
 
+    // 🔧 Set the ANT+ network key
+    err_code = sd_ant_network_address_set(ANTPLUS_NETWORK_NUMBER, ANT_PLUS_NETWORK_KEY);
+    if (err_code != NRF_SUCCESS)
+    {
+        NRF_LOG_ERROR("🚨 Failed to set ANT+ network key! Error: 0x%08X", err_code);
+        return;
+    }
+    NRF_LOG_INFO("✅ ANT+ Network Key Set Successfully!");
+
     static const ant_channel_config_t bpwr_channel_config =
     {
         .channel_number    = ANT_BPWR_ANT_CHANNEL,
-        .channel_type      = BPWR_DISP_CHANNEL_TYPE,
+        .channel_type      = BPWR_DISP_CHANNEL_TYPE,  // ANT+ Receiver
         .ext_assign        = BPWR_EXT_ASSIGN,
-        .rf_freq           = BPWR_ANTPLUS_RF_FREQ,
-        .transmission_type = ANT_BPWR_TRANS_TYPE,
-        .device_type       = 11,
-        .device_number     = 18465,
+        .rf_freq           = BPWR_ANTPLUS_RF_FREQ,   // Default ANT+ Frequency
+        .transmission_type = ANT_BPWR_TRANS_TYPE,  
+        .device_type       = 11, // ANT+ Bike Power
+        .device_number     = 0,  // LISTEN TO ALL DEVICES
         .channel_period    = BPWR_MSG_PERIOD,
-        .network_number    = ANTPLUS_NETWORK_NUMBER
+        .network_number    = ANTPLUS_NETWORK_NUMBER,
     };
 
+    // Print all parameters
+    NRF_LOG_INFO("🔧 ANT+ Config:");
+    NRF_LOG_INFO("   - Channel Number: %d", bpwr_channel_config.channel_number);
+    NRF_LOG_INFO("   - Channel Type: %d", bpwr_channel_config.channel_type);
+    NRF_LOG_INFO("   - RF Freq: %d", bpwr_channel_config.rf_freq);
+    NRF_LOG_INFO("   - Device Type: %d", bpwr_channel_config.device_type);
+    NRF_LOG_INFO("   - Device Number: %d", bpwr_channel_config.device_number);
+    NRF_LOG_INFO("   - Channel Period: %d", bpwr_channel_config.channel_period);
+    NRF_LOG_INFO("   - Network Number: %d", bpwr_channel_config.network_number);
+
+    // Initialize the ANT BPWR channel
     NRF_LOG_INFO("📡 Calling ant_bpwr_disp_init...");
     err_code = ant_bpwr_disp_init(&m_ant_bpwr, &bpwr_channel_config, &m_ant_bpwr_profile_bpwr_disp_config);
     if (err_code != NRF_SUCCESS) {
@@ -226,6 +262,7 @@ static void ant_bpwr_rx_start(void)
     }
     NRF_LOG_INFO("✅ ant_bpwr_disp_init SUCCESS!");
 
+    // Open the ANT+ BPWR channel
     NRF_LOG_INFO("📡 Calling ant_bpwr_disp_open...");
     err_code = ant_bpwr_disp_open(&m_ant_bpwr);
     if (err_code != NRF_SUCCESS) {
@@ -233,11 +270,7 @@ static void ant_bpwr_rx_start(void)
         return;
     }
     NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
-
-    NRF_LOG_INFO("🔄 ANT+ BPWR Channel Started Successfully.");
 }
-
-
 
 
 /**@brief Attempt to both open the ant channel and start ble advertising.
@@ -471,36 +504,32 @@ static void conn_params_init(void)
 }
 
 
-/**@brief Function for handling a ANT stack event.
- *
- * @param[in] p_ant_evt  ANT stack event.
- * @param[in] p_context  Context.
- */
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
-    NRF_LOG_INFO("📡 ant_evt_handler called - Event: %d", p_ant_evt->event);
+    NRF_LOG_INFO("📡 ANT+ Event Received - Event: %d", p_ant_evt->event);
+    return;
 
-    if (p_ant_evt->event == EVENT_RX)  // Incoming ANT+ message
+    switch (p_ant_evt->event)
     {
-        uint8_t * p_page_buffer = p_ant_evt->message.ANT_MESSAGE_aucPayload;
-        uint8_t page_number = p_page_buffer[0];  // Page number is always in Byte 0
-
-        NRF_LOG_INFO("📡 ANT+ Message Received - Page: %d", page_number);
-
-        switch (page_number)
-        {
-            case 0x52:  // 🔋 Battery Status (Common Page 82)
+        case EVENT_RX:
+            // Process the received data
+            uint8_t * p_page_buffer = p_ant_evt->message.ANT_MESSAGE_aucPayload;
+            uint8_t page_number = p_page_buffer[0];  // Page number is always in Byte 0
+    
+            if (page_number == 0x52)  // 🔋 Battery Status (Common Page 82)
             {
+                NRF_LOG_INFO("📡 ANT+ Message Received - Page: %d", page_number);
+
                 uint8_t battery_id = (p_page_buffer[1] & 0xF0) >> 4;  // Extract battery ID (upper 4 bits)
                 uint8_t num_batteries = p_page_buffer[1] & 0x0F;  // Extract number of batteries (lower 4 bits)
-
+    
                 uint32_t operating_time = (p_page_buffer[2]) |
                                           (p_page_buffer[3] << 8) |
                                           (p_page_buffer[4] << 16);
-
+    
                 uint8_t battery_voltage_frac = p_page_buffer[5];  // Fractional battery voltage
                 float battery_voltage = battery_voltage_frac / 256.0;  // Convert to volts
-
+    
                 uint8_t status_flags = p_page_buffer[6];  // Battery status information
                 
                 NRF_LOG_INFO("🔋 Battery Status:");
@@ -517,26 +546,17 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 if (status_flags & 0x02) {
                     NRF_LOG_INFO("   - 🔄 Battery Replaced");
                 }
-                break;
             }
+            break;
 
-            default:
-                // Forward event to existing BPWR handler
-                ant_bpwr_disp_evt_handler(p_ant_evt, p_context);
-                break;
-        }
-    }
-    else if (p_ant_evt->event == EVENT_CHANNEL_CLOSED)
-    {
-        NRF_LOG_INFO("🔄 ANT+ Channel Closed - Restarting...");
-        if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
-        {
-            ant_bpwr_rx_start();
-        }
-        else
-        {
-            ant_and_adv_start();
-        }
+        case EVENT_CHANNEL_CLOSED:
+            NRF_LOG_INFO("🔄 ANT+ Channel Closed - Restarting...");
+            ant_bpwr_rx_start();  // Restart ANT+ without affecting BLE
+            break;
+
+        default:
+            NRF_LOG_INFO("⚠️ Unhandled ANT+ event: %d", p_ant_evt->event);
+            break;
     }
 }
 
@@ -548,61 +568,28 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
  */
 static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t event)
 {
-    NRF_LOG_INFO("🔍 ANT+ Event Received: %d", event);
-    return;  // 🚨 Skip processing
-    
-    // 🚨 Validate input pointer
     if (p_profile == NULL)
     {
         NRF_LOG_ERROR("🚨 ERROR: p_profile is NULL!");
         return;
     }
 
-    NRF_LOG_INFO("🔍 ANT+ Event Received: %d", event);
-
     switch (event)
     {
         case ANT_BPWR_PAGE_16_UPDATED:
         {
-            ant_bpwr_page16_data_t * p_page = &p_profile->page_16;
+            uint16_t power_watts = p_profile->page_16.instantaneous_power;
+            uint8_t cadence_rpm = 25; // p_profile->page_16.pedal_cadence;
 
-            // 🚨 Validate p_page before using it
-            if (p_page == NULL)
-            {
-                NRF_LOG_ERROR("🚨 ERROR: p_page is NULL!");
-                return;
-            }
+            NRF_LOG_INFO("🚴 Power: %d W, Cadence: %d RPM", power_watts, cadence_rpm);
 
-            // ✅ Extract Pedal Power
-            bool isRightPedal = p_page->pedal_power.items.differentiation;
-            uint8_t pedalPowerPercent = p_page->pedal_power.items.distribution;
-
-            // ✅ Extract Cadence (handle invalid case)
-            uint8_t cadence = 25; // (p_page->pedal_cadence == 0xFF) ? 0 : p_page->pedal_cadence;
-
-            // ✅ Extract Accumulated Power (check for invalid values)
-            uint16_t accumulatedPower = p_page->accumulated_power;
-            if (accumulatedPower == 0xFFFF) accumulatedPower = 0;
-
-            // ✅ Extract Instantaneous Power (check for invalid values)
-            uint16_t instantaneousPower = p_page->instantaneous_power;
-            if (instantaneousPower == 0xFFFF) instantaneousPower = 0;
-
-            NRF_LOG_INFO("🚴 Page 16 Parsed - Pedal: %s, Pedal Power: %d%%, Cadence: %d RPM, Accumulated Power: %d W, Instant Power: %d W",
-                         isRightPedal ? "Right" : "Unknown", pedalPowerPercent, cadence, accumulatedPower, instantaneousPower);
-
-            // ✅ Send to FTMS (BLE) only if connected
-            if (m_ftms.conn_handle == BLE_CONN_HANDLE_INVALID)
-            {
-                NRF_LOG_WARNING("🚨 WARNING: No BLE connection, skipping FTMS update.");
-            }
-            else
+            // ✅ Forward to BLE FTMS (if connected)
+            if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID)
             {
                 ble_ftms_data_t ftms_data = {
-                    .power_watts = instantaneousPower,
-                    .cadence_rpm = cadence
+                    .power_watts = power_watts,
+                    .cadence_rpm = cadence_rpm
                 };
-                NRF_LOG_INFO("📡 Sending FTMS Data: Power=%dW, Cadence=%dRPM", instantaneousPower, cadence);
                 ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
             }
             break;
@@ -610,22 +597,6 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
 
         case ANT_BPWR_PAGE_80_UPDATED:  // 📋 Manufacturer Info (Page 80)
         {
-            uint8_t raw_data[ANT_STANDARD_DATA_PAYLOAD_SIZE] = {0};
-            ret_code_t err_code = sd_ant_channel_id_get(p_profile->channel_number, NULL, NULL, &raw_data[0]);
-
-            if (err_code != NRF_SUCCESS)
-            {
-                NRF_LOG_ERROR("🚨 ERROR: sd_ant_channel_id_get failed with code: 0x%08X", err_code);
-                return;
-            }
-
-            uint8_t device_type = raw_data[1];
-            if (device_type != 11)  // ✅ Only process Fitness Equipment (Type 11)
-            {
-                NRF_LOG_INFO("Ignoring Non-Fitness Device: Type %d", device_type);
-                return;
-            }
-
             uint16_t manufacturer_id = p_profile->page_80.manufacturer_id;
             uint16_t model_number = p_profile->page_80.model_number;
             uint8_t hardware_revision = p_profile->page_80.hw_revision;
@@ -669,6 +640,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
+            NRF_LOG_INFO("✅ BLE Connected");
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
@@ -677,16 +649,14 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
+            NRF_LOG_INFO("⚠️ BLE Disconnected");
             err_code = bsp_indication_set(BSP_INDICATE_IDLE);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
-            // Need to close the ANT channel to make it safe to write bonding information to flash
-            err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
-            APP_ERROR_CHECK(err_code);
-
-            // Note: Bonding information will be stored, advertising will be restarted and the
-            //       ANT channel will be reopened when ANT event CHANNEL_CLOSED is received.
+            // Keep ANT+ Running – Do NOT close the ANT+ channel!
+            // Just restart BLE advertising
+            advertising_start();  
             break;
 
 #ifndef S140
@@ -722,22 +692,27 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             if (p_ble_evt->evt.gap_evt.params.adv_set_terminated.reason ==
                 BLE_GAP_EVT_ADV_SET_TERMINATED_REASON_TIMEOUT)
             {
+                NRF_LOG_INFO("🔄 Advertising Timeout - Sleeping for 5 seconds before restarting...");
                 err_code = bsp_indication_set(BSP_INDICATE_IDLE);
                 APP_ERROR_CHECK(err_code);
-                // Go to system-off mode (this function will not return; wakeup will cause a reset)
-                err_code = sd_power_system_off();
+
+                // Start a timer to wake up after 5 seconds
+                err_code = app_timer_start(m_adv_restart_timer, APP_TIMER_TICKS(5000), NULL);
                 APP_ERROR_CHECK(err_code);
+
+                // Enter sleep mode (will wake up on the timer event)
+                sd_app_evt_wait();
             }
             break;
 
 #ifndef BONDING_ENABLE
-            case BLE_GATTS_EVT_SYS_ATTR_MISSING:
-                err_code = sd_ble_gatts_sys_attr_set(m_conn_handle,
-                                                     NULL,
-                                                     0,
-                                                     BLE_GATTS_SYS_ATTR_FLAG_SYS_SRVCS | BLE_GATTS_SYS_ATTR_FLAG_USR_SRVCS);
-                APP_ERROR_CHECK(err_code);
-                break;
+        case BLE_GATTS_EVT_SYS_ATTR_MISSING:
+            err_code = sd_ble_gatts_sys_attr_set(m_conn_handle,
+                                                 NULL,
+                                                 0,
+                                                 BLE_GATTS_SYS_ATTR_FLAG_SYS_SRVCS | BLE_GATTS_SYS_ATTR_FLAG_USR_SRVCS);
+            APP_ERROR_CHECK(err_code);
+            break;
 #endif // BONDING_ENABLE
 
         default:
@@ -745,6 +720,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
     }
 }
+
 
 #ifdef BONDING_ENABLE
 /**@brief Function for handling Peer Manager events.
@@ -821,29 +797,28 @@ static void softdevice_setup(void)
     APP_ERROR_CHECK(err_code);
 
     ASSERT(nrf_sdh_is_enabled());
+    NRF_LOG_INFO("✅ SoftDevice enabled");
 
     uint32_t ram_start = 0;  // Let SoftDevice decide
 
     err_code = nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start);
     APP_ERROR_CHECK(err_code);
-
-    NRF_LOG_INFO("SoftDevice suggests RAM start: 0x%08X", ram_start);
+    NRF_LOG_INFO("✅ BLE Config Set");
 
     err_code = nrf_sdh_ble_enable(&ram_start);
     if (err_code == NRF_ERROR_NO_MEM) {
-        NRF_LOG_ERROR("Memory issue! SoftDevice needs more RAM.");
+        NRF_LOG_ERROR("🚨 Memory issue! SoftDevice needs more RAM.");
     }
     APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("✅ BLE Enabled");
 
     err_code = nrf_sdh_ant_enable();
-    APP_ERROR_CHECK(err_code);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("🚨 ANT+ Enable FAILED: 0x%08X", err_code);
+        return;
+    }
+    NRF_LOG_INFO("✅ ANT+ Stack Enabled");
 
-    err_code = ant_plus_key_set(ANTPLUS_NETWORK_NUMBER);
-    APP_ERROR_CHECK(err_code);
-
-    // Register BLE & ANT event handlers
-    NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
-    NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NULL);
 }
 
 
@@ -858,21 +833,16 @@ int main(void)
 
     err_code = NRF_LOG_INIT(NULL);
     APP_ERROR_CHECK(err_code);
-
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 
-    // Initialize peripherals
     timers_init();
-
     err_code = nrf_pwr_mgmt_init();
     APP_ERROR_CHECK(err_code);
 
-    softdevice_setup();
+    softdevice_setup();  // Initializes BLE and ANT+ stacks
 
-    err_code = bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, NULL);
-    APP_ERROR_CHECK(err_code);
-
-    // Initialize Bluetooth stack parameters.
+    bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, NULL);
+    
     gatt_init();
     gap_params_init();
     advertising_init();
@@ -881,18 +851,20 @@ int main(void)
 
 #ifdef BONDING_ENABLE
     bool erase_bonds = bsp_button_is_pressed(BOND_DELETE_ALL_BUTTON_ID);
-
     peer_manager_init(erase_bonds);
-    if (erase_bonds == true)
-    {
+    if (erase_bonds) {
         NRF_LOG_INFO("Bonds erased!");
     }
 #endif // BONDING_ENABLE
 
-    NRF_LOG_INFO("ANT and BLE Heart Rate Monitor Relay example started.");
-    ant_and_adv_start();
+    NRF_LOG_INFO("🏁 Starting BLE and ANT+ independently...");
+    
+    advertising_start();  // Start BLE advertising
+    ant_bpwr_rx_start();  // Start ANT+ reception
 
-    // Enter main loop.
+    err_code = app_timer_create(&m_adv_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, adv_restart_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+
     for (;;)
     {
         if (NRF_LOG_PROCESS() == false)
@@ -901,6 +873,7 @@ int main(void)
         }
     }
 }
+
 
 /**
  * @}

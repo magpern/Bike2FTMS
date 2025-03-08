@@ -4,18 +4,20 @@
             "name": "nRF5",
             "includePath": [
                 "${workspaceFolder}/**",
-                "D:/nRF5_SDK/external/**",
-                "D:/nRF5_SDK/integration/**",
-                "D:/nRF5_SDK/modules/**",
-                "D:/nRF5_SDK/config/**",
-                "D:/nRF5_SDK/components/softdevice/s340/**",
-                "D:/nRF5_SDK/components/softdevice/common/**",
-                "D:/nRF5_SDK/components/libraries/**",
-                "D:/nRF5_SDK/components/toolchain/**",
+                "D:/nRF5_SDK/components/softdevice/s340/**",  // Only SoftDevice S340
+                "D:/nRF5_SDK/components/softdevice/common/**",  // Common SoftDevice files
+                "D:/nRF5_SDK/components/ble/**",              // BLE-related components
+                "D:/nRF5_SDK/components/drivers_ext/**",          // Necessary drivers
+                "D:/nRF5_SDK/components/drivers_nrf/**",          // Necessary drivers
+                "D:/nRF5_SDK/components/libraries/**",        // Common libraries
+                "D:/nRF5_SDK/modules/**",                     // Additional SDK modules
+                "D:/nRF5_SDK/integration/**",                 // Integration files
+                "D:/nRF5_SDK/external/**",                    // External dependencies
                 "D:/nRF5_SDK/components/ant/**",
                 "D:/nRF5_SDK/components/ble/**",
                 "D:/nRF5_SDK/components/boards/**",
-                "C:/Program Files/SEGGER/SEGGER Embedded Studio 8.18/include/**"
+                "D:/nRF5_SDK/components/toolchain/**",
+                "D:/nRF5_SDK/components/ant/ant_profiles/**"
             ],
             "defines": [
                 "APP_TIMER_V2",
@@ -26,7 +28,7 @@
                 "INITIALIZE_USER_SECTIONS",
                 "NO_VTOR_CONFIG",
                 "NRF52840_XXAA",
-                "NRF_SD_BLE_API_VERSION=6",
+                "NRF_SD_BLE_API_VERSION=7",
                 "S340",
                 "SOFTDEVICE_PRESENT",
                 "DEBUG",
@@ -43,7 +45,6 @@
                 "-munaligned-access",
                 "-mtp=soft",
                 "-mfp16-format=ieee",
-                "-nostdinc",
                 "-gdwarf-4",
                 "-g0",
                 "-gpubnames",

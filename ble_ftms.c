@@ -140,5 +140,6 @@ void ble_ftms_send_indoor_bike_data(ble_ftms_t * p_ftms, ble_ftms_data_t * p_dat
     hvx_params.p_data = encoded_data;
     hvx_params.p_len  = (uint16_t[]){sizeof(encoded_data)};
 
-    sd_ble_gatts_hvx(p_ftms->conn_handle, &hvx_params);
+    //Temporarely commented out
+    //sd_ble_gatts_hvx(p_ftms->conn_handle, &hvx_params);
 }
