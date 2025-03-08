@@ -136,9 +136,9 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                                   /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-#define ANT_HRMRX_ANT_CHANNEL           0                                            /**< Default ANT Channel. */
-#define ANT_HRMRX_DEVICE_NUMBER         0                                            /**< Device Number. */
-#define ANT_HRMRX_TRANS_TYPE            0                                            /**< Transmission Type. */
+#define ANT_BPWR_ANT_CHANNEL           0                                            /**< Default ANT Channel. */
+#define ANT_BPWR_DEVICE_NUMBER         18465                                            /**< Device Number. */
+#define ANT_BPWR_TRANS_TYPE            5                                            /**< Transmission Type. */
 #define ANTPLUS_NETWORK_NUMBER          0                                            /**< Network number. */
 
 static volatile uint16_t                m_conn_handle = BLE_CONN_HANDLE_INVALID;     /**< Handle of the current connection. */
@@ -150,14 +150,19 @@ static ble_ftms_t m_ftms;  // BLE FTMS Service Instance
 
 
 static ant_bpwr_profile_t m_ant_bpwr; /* ANT Bike/Power profile instance */
-BPWR_DISP_CHANNEL_CONFIG_DEF(m_ant_bpwr,
-                    ANT_HRMRX_ANT_CHANNEL,
-                    ANT_HRMRX_TRANS_TYPE,
-                    ANT_HRMRX_DEVICE_NUMBER,
-                    ANTPLUS_NETWORK_NUMBER);
+// Forward declaration of ANT BPWR event handler
+static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t event);
+
 
 NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
 
+static ant_bpwr_disp_cb_t m_ant_bpwr_disp_cb;  // Display callback structure
+
+static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
+{
+    .p_cb        = &m_ant_bpwr_disp_cb,
+    .evt_handler = ant_bpwr_evt_handler,
+};
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -193,13 +198,37 @@ static void advertising_start(void)
 }
 
 
-/**@brief Start receiving the ANT PWR data.
- */
+/**@brief Start receiving the ANT PWR data. */
 static void ant_bpwr_rx_start(void)
 {
-    uint32_t err_code = ant_bpwr_disp_open(&m_ant_bpwr);
+    uint32_t err_code;
+
+    // ✅ Define the correct channel configuration with Device Type 11
+    static const ant_channel_config_t bpwr_channel_config =
+    {
+        .channel_number    = ANT_BPWR_ANT_CHANNEL,
+        .channel_type      = BPWR_DISP_CHANNEL_TYPE, // Slave mode (Receive)
+        .ext_assign        = BPWR_EXT_ASSIGN,
+        .rf_freq           = BPWR_ANTPLUS_RF_FREQ,
+        .transmission_type = ANT_BPWR_TRANS_TYPE,
+        .device_type       = 11,  // ✅ Only listen to Device Type 11 (Fitness Equipment)
+        .device_number     = 18465,  // (Optional) Filter a specific bike
+        .channel_period    = BPWR_MSG_PERIOD,
+        .network_number    = ANTPLUS_NETWORK_NUMBER
+    };
+
+    // ✅ Initialize the BPWR Profile with the Correct Channel Config
+    err_code = ant_bpwr_disp_init(&m_ant_bpwr, &bpwr_channel_config, &m_ant_bpwr_profile_bpwr_disp_config);
     APP_ERROR_CHECK(err_code);
+
+    // ✅ Open the ANT+ Channel
+    err_code = ant_bpwr_disp_open(&m_ant_bpwr);
+    APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_INFO("🔄 ANT+ Scanning for Bike Device Type: %d (ID: %d)",
+                 bpwr_channel_config.device_type, bpwr_channel_config.device_number);
 }
+
 
 
 
@@ -441,44 +470,150 @@ static void conn_params_init(void)
  */
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
-    if (p_ant_evt->event != EVENT_CHANNEL_CLOSED)
+    if (p_ant_evt->event == EVENT_RX)  // Incoming ANT+ message
     {
-        return;
+        uint8_t * p_page_buffer = p_ant_evt->message.ANT_MESSAGE_aucPayload;
+        uint8_t page_number = p_page_buffer[0];  // Page number is always in Byte 0
+
+        switch (page_number)
+        {
+            case 0x52:  // 🔋 Battery Status (Common Page 82)
+            {
+                uint8_t battery_id = (p_page_buffer[1] & 0xF0) >> 4;  // Extract battery ID (upper 4 bits)
+                uint8_t num_batteries = p_page_buffer[1] & 0x0F;  // Extract number of batteries (lower 4 bits)
+
+                uint32_t operating_time = (p_page_buffer[2]) |
+                                          (p_page_buffer[3] << 8) |
+                                          (p_page_buffer[4] << 16);
+
+                uint8_t battery_voltage_frac = p_page_buffer[5];  // Fractional battery voltage
+                float battery_voltage = battery_voltage_frac / 256.0;  // Convert to volts
+
+                uint8_t status_flags = p_page_buffer[6];  // Battery status information
+                
+                NRF_LOG_INFO("🔋 Battery Status:");
+                NRF_LOG_INFO("   - Battery ID: %d", battery_id);
+                NRF_LOG_INFO("   - Number of Batteries: %d", num_batteries);
+                NRF_LOG_INFO("   - Operating Time: %d seconds", operating_time * 2);  // Convert to actual seconds
+                NRF_LOG_INFO("   - Battery Voltage: %.2fV", battery_voltage);
+                NRF_LOG_INFO("   - Status Flags: 0x%02X", status_flags);
+                
+                // Decode battery status flags
+                if (status_flags & 0x01) {
+                    NRF_LOG_INFO("   - ⚠️ Battery Low");
+                }
+                if (status_flags & 0x02) {
+                    NRF_LOG_INFO("   - 🔄 Battery Replaced");
+                }
+                break;
+            }
+
+            default:
+                // Forward event to existing BPWR handler
+                ant_bpwr_disp_evt_handler(p_ant_evt, p_context);
+                break;
+        }
     }
-    if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+    else if (p_ant_evt->event == EVENT_CHANNEL_CLOSED)  // Handle channel closure
     {
-        ant_bpwr_rx_start();
-    }
-    else
-    {
-        ant_and_adv_start();
+        if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+        {
+            ant_bpwr_rx_start();
+        }
+        else
+        {
+            ant_and_adv_start();
+        }
     }
 }
 
 
-/**@brief Handle received ANT+ BPWR data.
+/** @brief Handle received ANT+ BPWR data.
  *
- * @param[in]   p_profile       Pointer to the ANT+ PWR profile instance.
- * @param[in]   event           Event related with ANT+ PWR Display profile.
+ * @param[in]   p_profile       Pointer to the ANT+ BPWR profile instance.
+ * @param[in]   event           Event related to ANT+ BPWR Display profile.
  */
 static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t event)
 {
     switch (event)
     {
-        case ANT_BPWR_PAGE_1_UPDATED:
         case ANT_BPWR_PAGE_16_UPDATED:
-        case ANT_BPWR_PAGE_17_UPDATED:
         {
-            uint16_t power = p_profile->page_16.instantaneous_power;
-            //uint8_t cadence = p_profile->page_16.pedal_cadence;
-            uint8_t cadence = 15;
-            NRF_LOG_INFO("Bike Power Data: Power = %d W, Cadence = %d RPM", power, cadence);
+            ant_bpwr_page16_data_t * p_page = &p_profile->page_16;
+
+            // ✅ Extract Pedal Power
+            bool isRightPedal = p_page->pedal_power.items.differentiation; // Correctly access the bitfield
+            uint8_t pedalPowerPercent = p_page->pedal_power.items.distribution; // Extract power % (Bits 0-6)
+
+            // ✅ Extract Cadence
+            uint8_t cadence = (p_page->pedal_cadence == 0xFF) ? 0 : p_page->pedal_cadence; // 0xFF = Invalid
+
+            // ✅ Extract Accumulated Power (Bytes 4-5, Little-Endian)
+            uint16_t accumulatedPower = p_page->accumulated_power;
+            if (accumulatedPower == 0xFFFF) accumulatedPower = 0; // Invalid Data Check
+
+            // ✅ Extract Instantaneous Power (Bytes 6-7, Little-Endian)
+            uint16_t instantaneousPower = p_page->instantaneous_power;
+            if (instantaneousPower == 0xFFFF) instantaneousPower = 0; // Invalid Data Check
+
+            NRF_LOG_INFO("🚴 Page 16 Parsed - Pedal: %s, Pedal Power: %d%%, Cadence: %d RPM, Accumulated Power: %d W, Instant Power: %d W",
+                        isRightPedal ? "Right" : "Unknown", pedalPowerPercent, cadence, accumulatedPower, instantaneousPower);
+
+            // ✅ Send to FTMS (BLE)
+            ble_ftms_data_t ftms_data = {
+                .power_watts = instantaneousPower,
+                .cadence_rpm = cadence
+            };
+            ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
             break;
         }
+
+        case ANT_BPWR_PAGE_17_UPDATED:  // 🚴 Wheel Torque Data (Page 17)
+            break;
+        case ANT_BPWR_PAGE_80_UPDATED:  // 📋 Manufacturer Info (Page 80)
+        {
+            uint8_t raw_data[ANT_STANDARD_DATA_PAYLOAD_SIZE];
+            sd_ant_channel_id_get(p_profile->channel_number, NULL, NULL, &raw_data[0]);
+            uint8_t device_type = raw_data[1];  // Byte 1 = Device Type
+
+            if (device_type != 11) {  // ✅ Only process Fitness Equipment (Type 11)
+                NRF_LOG_INFO("Ignoring Non-Fitness Device: Type %d", device_type);
+                return;
+            }
+
+            uint16_t manufacturer_id = p_profile->page_80.manufacturer_id;
+            uint16_t model_number = p_profile->page_80.model_number;
+            uint8_t hardware_revision = p_profile->page_80.hw_revision;
+
+            NRF_LOG_INFO("📋 Manufacturer Info - HW Rev: %d, Manufacturer: %d, Model: %d",
+                         hardware_revision, manufacturer_id, model_number);
+            break;
+        }
+
+        case ANT_BPWR_PAGE_81_UPDATED:  // 📋 Product Information (Page 81)
+        {
+            uint8_t sw_revision_main = p_profile->page_81.sw_revision_major;
+            uint8_t sw_revision_supplemental = p_profile->page_81.sw_revision_minor;
+            uint32_t serial_number = p_profile->page_81.serial_number;
+
+            uint16_t software_version = (sw_revision_supplemental == 0xFF) ?
+                                        sw_revision_main :
+                                        (sw_revision_main * 100) + sw_revision_supplemental;
+
+            NRF_LOG_INFO("📋 Product Info - SW Version: %d, Serial Number: %u",
+                         software_version, serial_number);
+            break;
+        }
+        
         default:
+            NRF_LOG_INFO("⚠️ Unknown ANT+ Page Update: %d", event);
             break;
     }
 }
+
+
+
+
 
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
@@ -506,7 +641,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
             // Need to close the ANT channel to make it safe to write bonding information to flash
-            err_code = sd_ant_channel_close(ANT_HRMRX_ANT_CHANNEL);
+            err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
             APP_ERROR_CHECK(err_code);
 
             // Note: Bonding information will be stored, advertising will be restarted and the
@@ -672,13 +807,7 @@ static void softdevice_setup(void)
 
 
 
-static ant_bpwr_disp_cb_t m_ant_bpwr_disp_cb;  // Display callback structure
 
-static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
-{
-    .p_cb        = &m_ant_bpwr_disp_cb,
-    .evt_handler = ant_bpwr_evt_handler,
-};
 
 /**@brief Application main function.
  */
@@ -708,15 +837,6 @@ int main(void)
     advertising_init();
     services_init();
     conn_params_init();
-
-    // Initialize ANT+ PWR receive channel.
-    err_code = ant_bpwr_disp_init(&m_ant_bpwr,
-        BPWR_DISP_CHANNEL_CONFIG(m_ant_bpwr),
-        &m_ant_bpwr_profile_bpwr_disp_config);
-    
-        APP_ERROR_CHECK(err_code);
-
-
 
 #ifdef BONDING_ENABLE
     bool erase_bonds = bsp_button_is_pressed(BOND_DELETE_ALL_BUTTON_ID);

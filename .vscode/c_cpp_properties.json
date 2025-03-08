@@ -1,38 +1,59 @@
 {
     "configurations": [
         {
-            "name": "nRF5_SDK",
+            "name": "nRF5",
             "includePath": [
                 "${workspaceFolder}/**",
-                "D:/nRF5_SDK/components/softdevice/s340/**",  // Only SoftDevice S340
-                "D:/nRF5_SDK/components/softdevice/common/**",  // Common SoftDevice files
-                "D:/nRF5_SDK/components/ble/**",              // BLE-related components
-                "D:/nRF5_SDK/components/drivers_ext/**",          // Necessary drivers
-                "D:/nRF5_SDK/components/drivers_nrf/**",          // Necessary drivers
-                "D:/nRF5_SDK/components/libraries/**",        // Common libraries
-                "D:/nRF5_SDK/modules/**",                     // Additional SDK modules
-                "D:/nRF5_SDK/integration/**",                 // Integration files
-                "D:/nRF5_SDK/external/**",                    // External dependencies
-                "D:/nRF5_SDK/components/ant/**",
-                "D:/nRF5_SDK/components/boards/**",
+                "D:/nRF5_SDK/components/**",
+                "D:/nRF5_SDK/external/**",
+                "D:/nRF5_SDK/integration/**",
+                "D:/nRF5_SDK/modules/**",
+                "D:/nRF5_SDK/config/**",
+                "D:/nRF5_SDK/components/softdevice/s340/**",
+                "D:/nRF5_SDK/components/libraries/**",
                 "D:/nRF5_SDK/components/toolchain/**",
-                "D:/nRF5_SDK/components/ant/ant_profiles/**"
-                //"D:/nRF5_SDK/components/proprietary_rf/**",
-                //"D:/nRF5_SDK/components/serialization/**",
+                "D:/nRF5_SDK/components/ant/**",
+                "D:/nRF5_SDK/components/ble/**",
+                "D:/nRF5_SDK/components/boards/**",
+                "C:/Program Files/SEGGER/SEGGER Embedded Studio 8.18/include/**"
             ],
             "defines": [
-                "NRF52840_XXAA",
+                "APP_TIMER_V2",
+                "APP_TIMER_V2_RTC1_ENABLED",
                 "BOARD_PCA10056",
-                "SOFTDEVICE_PRESENT",
-                "BLE_STACK_SUPPORT_REQD",
-                "S340",
+                "CONFIG_GPIO_AS_PINRESET",
                 "FLOAT_ABI_HARD",
-                "NRF_SD_BLE_API_VERSION=7"
+                "INITIALIZE_USER_SECTIONS",
+                "NO_VTOR_CONFIG",
+                "NRF52840_XXAA",
+                "NRF_SD_BLE_API_VERSION=6",
+                "S340",
+                "SOFTDEVICE_PRESENT",
+                "DEBUG",
+                "DEBUG_NRF"
             ],
+            "intelliSenseMode": "gcc-arm",
             "compilerPath": "C:/gnu_arm_embedded/bin/arm-none-eabi-gcc.exe",
-            "cStandard": "c11",
-            "cppStandard": "c++17",
-            "intelliSenseMode": "gcc-arm"
+            "compilerArgs": [
+                "-mcpu=cortex-m4",
+                "-mlittle-endian",
+                "-mfloat-abi=hard",
+                "-mfpu=fpv4-sp-d16",
+                "-mthumb",
+                "-munaligned-access",
+                "-mtp=soft",
+                "-mfp16-format=ieee",
+                "-nostdinc",
+                "-gdwarf-4",
+                "-g0",
+                "-gpubnames",
+                "-fomit-frame-pointer",
+                "-fno-dwarf2-cfi-asm",
+                "-ffunction-sections",
+                "-fdata-sections",
+                "-fshort-enums",
+                "-fno-common"
+            ]
         }
     ],
     "version": 4

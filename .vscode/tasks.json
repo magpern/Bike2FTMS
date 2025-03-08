@@ -1,0 +1,66 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start J-Link GDB Server",
+            "type": "shell",
+            "command": "${env:ProgramFiles}\\SEGGER\\JLink_V794i\\JLinkGDBServerCL.exe",
+            "args": [
+                "-device", "nRF52840_xxAA",
+                "-if", "SWD",
+                "-speed", "4000",
+                "-port", "2331"
+            ],
+            "isBackground": false,
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "Connecting to J-Link...",
+                        "endsPattern": "Listening on TCP/IP port 2331"
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Build (Makefile)",
+            "type": "shell",
+            "command": "make",
+            "args": [],
+            "options": {
+                "cwd": "${workspaceFolder}/pca10056/s340/armgcc"
+            },
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Flash (nrfjprog)",
+            "type": "shell",
+            "command": "make",
+            "args": ["flash"],
+            "options": {
+                "cwd": "${workspaceFolder}/pca10056/s340/armgcc"
+            }
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "command": "make",
+            "args": ["clean"],
+            "options": {
+                "cwd": "${workspaceFolder}/pca10056/s340/armgcc"
+            }
+        }
+    ]
+}

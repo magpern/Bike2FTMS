@@ -1,4 +1,4 @@
-PROJECT_NAME     := ble_ant_app_hrm_pca10056_s340
+PROJECT_NAME     := ble_ant_app_FTMS_pca10056_s340
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := _build
 
@@ -52,12 +52,6 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c \
   $(SDK_ROOT)/components/ant/ant_channel_config/ant_channel_config.c \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/ant_hrm.c \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/pages/ant_hrm_page_0.c \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/pages/ant_hrm_page_1.c \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/pages/ant_hrm_page_2.c \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/pages/ant_hrm_page_3.c \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/pages/ant_hrm_page_4.c \
   $(SDK_ROOT)/components/ant/ant_profiles/ant_bpwr/ant_bpwr.c \
   $(SDK_ROOT)/components/ant/ant_profiles/ant_bpwr/pages/ant_bpwr_page_1.c \
   $(SDK_ROOT)/components/ant/ant_profiles/ant_bpwr/pages/ant_bpwr_page_16.c \
@@ -116,7 +110,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/timer \
   $(SDK_ROOT)/components/softdevice/s340/headers \
   $(SDK_ROOT)/components/libraries/util \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/utils \
   $(SDK_ROOT)/components/softdevice/s340/headers/nrf52 \
   $(SDK_ROOT)/components/ble/common \
   $(SDK_ROOT)/components/libraries/sensorsim \
@@ -126,7 +119,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/modules/nrfx/hal \
   $(SDK_ROOT)/components/libraries/bsp \
   $(SDK_ROOT)/components/ble/ble_services/ble_dis \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm \
   $(SDK_ROOT)/components/libraries/log \
   $(SDK_ROOT)/components/ant/ant_channel_config \
   $(SDK_ROOT)/components/ble/nrf_ble_gatt \
@@ -148,7 +140,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/ant/ant_key_manager/config \
   $(SDK_ROOT)/integration/nrfx \
   $(SDK_ROOT)/components/libraries/fds \
-  $(SDK_ROOT)/components/ant/ant_profiles/ant_hrm/pages \
   $(SDK_ROOT)/components/ble/ble_advertising \
   $(SDK_ROOT)/modules/nrfx/drivers/include \
   $(SDK_ROOT)/components/ble/ble_services/ble_bas \

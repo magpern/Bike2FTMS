@@ -23,7 +23,6 @@ build_*/
 *.workspace
 
 # Ignore IDE specific files
-.vscode/
 .idea/
 *.sublime-*
 

@@ -1,0 +1,52 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug nRF52840",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "D:/nRF5_SDK/projects/SatsBike/pca10056/s340/armgcc/_build/nrf52840_xxaa.out",
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "C:/gnu_arm_embedded/bin/arm-none-eabi-gdb.exe",
+            "preLaunchTask": "Start J-Link GDB Server",
+            "setupCommands": [
+                {
+                    "text": "file D:/nRF5_SDK/projects/SatsBike/pca10056/s340/armgcc/_build/nrf52840_xxaa.out",
+                    "description": "Specify ELF file",
+                    "ignoreFailures": false
+                },
+                {
+                    "text": "target extended-remote localhost:2331",
+                    "description": "Connect to J-Link GDB Server",
+                    "ignoreFailures": false
+                },
+                {
+                    "text": "monitor reset halt",
+                    "description": "Reset and halt target",
+                    "ignoreFailures": false
+                },
+                {
+                    "text": "load",
+                    "description": "Load firmware",
+                    "ignoreFailures": false
+                },
+                {
+                    "text": "monitor reset",
+                    "description": "Reset target after loading",
+                    "ignoreFailures": false
+                },
+                {
+                    "text": "break main",
+                    "description": "Set breakpoint at main",
+                    "ignoreFailures": false
+                }
+            ],
+            "externalConsole": false,
+            "logging": {
+                "trace": true,
+                "traceResponse": true,
+                "engineLogging": true
+            }
+        }
+    ]
+}
