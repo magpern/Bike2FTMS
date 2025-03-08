@@ -203,30 +203,38 @@ static void ant_bpwr_rx_start(void)
 {
     uint32_t err_code;
 
-    // ✅ Define the correct channel configuration with Device Type 11
+    NRF_LOG_INFO("🔄 Initializing ANT+ BPWR Channel...");
+
     static const ant_channel_config_t bpwr_channel_config =
     {
         .channel_number    = ANT_BPWR_ANT_CHANNEL,
-        .channel_type      = BPWR_DISP_CHANNEL_TYPE, // Slave mode (Receive)
+        .channel_type      = BPWR_DISP_CHANNEL_TYPE,
         .ext_assign        = BPWR_EXT_ASSIGN,
         .rf_freq           = BPWR_ANTPLUS_RF_FREQ,
         .transmission_type = ANT_BPWR_TRANS_TYPE,
-        .device_type       = 11,  // ✅ Only listen to Device Type 11 (Fitness Equipment)
-        .device_number     = 18465,  // (Optional) Filter a specific bike
+        .device_type       = 11,
+        .device_number     = 18465,
         .channel_period    = BPWR_MSG_PERIOD,
         .network_number    = ANTPLUS_NETWORK_NUMBER
     };
 
-    // ✅ Initialize the BPWR Profile with the Correct Channel Config
+    NRF_LOG_INFO("📡 Calling ant_bpwr_disp_init...");
     err_code = ant_bpwr_disp_init(&m_ant_bpwr, &bpwr_channel_config, &m_ant_bpwr_profile_bpwr_disp_config);
-    APP_ERROR_CHECK(err_code);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("🚨 ant_bpwr_disp_init FAILED: 0x%08X", err_code);
+        return;
+    }
+    NRF_LOG_INFO("✅ ant_bpwr_disp_init SUCCESS!");
 
-    // ✅ Open the ANT+ Channel
+    NRF_LOG_INFO("📡 Calling ant_bpwr_disp_open...");
     err_code = ant_bpwr_disp_open(&m_ant_bpwr);
-    APP_ERROR_CHECK(err_code);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("🚨 ant_bpwr_disp_open FAILED: 0x%08X", err_code);
+        return;
+    }
+    NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
 
-    NRF_LOG_INFO("🔄 ANT+ Scanning for Bike Device Type: %d (ID: %d)",
-                 bpwr_channel_config.device_type, bpwr_channel_config.device_number);
+    NRF_LOG_INFO("🔄 ANT+ BPWR Channel Started Successfully.");
 }
 
 
@@ -470,10 +478,14 @@ static void conn_params_init(void)
  */
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
+    NRF_LOG_INFO("📡 ant_evt_handler called - Event: %d", p_ant_evt->event);
+
     if (p_ant_evt->event == EVENT_RX)  // Incoming ANT+ message
     {
         uint8_t * p_page_buffer = p_ant_evt->message.ANT_MESSAGE_aucPayload;
         uint8_t page_number = p_page_buffer[0];  // Page number is always in Byte 0
+
+        NRF_LOG_INFO("📡 ANT+ Message Received - Page: %d", page_number);
 
         switch (page_number)
         {
@@ -514,8 +526,9 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 break;
         }
     }
-    else if (p_ant_evt->event == EVENT_CHANNEL_CLOSED)  // Handle channel closure
+    else if (p_ant_evt->event == EVENT_CHANNEL_CLOSED)
     {
+        NRF_LOG_INFO("🔄 ANT+ Channel Closed - Restarting...");
         if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
         {
             ant_bpwr_rx_start();
@@ -535,48 +548,80 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
  */
 static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t event)
 {
+    NRF_LOG_INFO("🔍 ANT+ Event Received: %d", event);
+    return;  // 🚨 Skip processing
+    
+    // 🚨 Validate input pointer
+    if (p_profile == NULL)
+    {
+        NRF_LOG_ERROR("🚨 ERROR: p_profile is NULL!");
+        return;
+    }
+
+    NRF_LOG_INFO("🔍 ANT+ Event Received: %d", event);
+
     switch (event)
     {
         case ANT_BPWR_PAGE_16_UPDATED:
         {
             ant_bpwr_page16_data_t * p_page = &p_profile->page_16;
 
+            // 🚨 Validate p_page before using it
+            if (p_page == NULL)
+            {
+                NRF_LOG_ERROR("🚨 ERROR: p_page is NULL!");
+                return;
+            }
+
             // ✅ Extract Pedal Power
-            bool isRightPedal = p_page->pedal_power.items.differentiation; // Correctly access the bitfield
-            uint8_t pedalPowerPercent = p_page->pedal_power.items.distribution; // Extract power % (Bits 0-6)
+            bool isRightPedal = p_page->pedal_power.items.differentiation;
+            uint8_t pedalPowerPercent = p_page->pedal_power.items.distribution;
 
-            // ✅ Extract Cadence
-            uint8_t cadence = (p_page->pedal_cadence == 0xFF) ? 0 : p_page->pedal_cadence; // 0xFF = Invalid
+            // ✅ Extract Cadence (handle invalid case)
+            uint8_t cadence = 25; // (p_page->pedal_cadence == 0xFF) ? 0 : p_page->pedal_cadence;
 
-            // ✅ Extract Accumulated Power (Bytes 4-5, Little-Endian)
+            // ✅ Extract Accumulated Power (check for invalid values)
             uint16_t accumulatedPower = p_page->accumulated_power;
-            if (accumulatedPower == 0xFFFF) accumulatedPower = 0; // Invalid Data Check
+            if (accumulatedPower == 0xFFFF) accumulatedPower = 0;
 
-            // ✅ Extract Instantaneous Power (Bytes 6-7, Little-Endian)
+            // ✅ Extract Instantaneous Power (check for invalid values)
             uint16_t instantaneousPower = p_page->instantaneous_power;
-            if (instantaneousPower == 0xFFFF) instantaneousPower = 0; // Invalid Data Check
+            if (instantaneousPower == 0xFFFF) instantaneousPower = 0;
 
             NRF_LOG_INFO("🚴 Page 16 Parsed - Pedal: %s, Pedal Power: %d%%, Cadence: %d RPM, Accumulated Power: %d W, Instant Power: %d W",
-                        isRightPedal ? "Right" : "Unknown", pedalPowerPercent, cadence, accumulatedPower, instantaneousPower);
+                         isRightPedal ? "Right" : "Unknown", pedalPowerPercent, cadence, accumulatedPower, instantaneousPower);
 
-            // ✅ Send to FTMS (BLE)
-            ble_ftms_data_t ftms_data = {
-                .power_watts = instantaneousPower,
-                .cadence_rpm = cadence
-            };
-            ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
+            // ✅ Send to FTMS (BLE) only if connected
+            if (m_ftms.conn_handle == BLE_CONN_HANDLE_INVALID)
+            {
+                NRF_LOG_WARNING("🚨 WARNING: No BLE connection, skipping FTMS update.");
+            }
+            else
+            {
+                ble_ftms_data_t ftms_data = {
+                    .power_watts = instantaneousPower,
+                    .cadence_rpm = cadence
+                };
+                NRF_LOG_INFO("📡 Sending FTMS Data: Power=%dW, Cadence=%dRPM", instantaneousPower, cadence);
+                ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
+            }
             break;
         }
 
-        case ANT_BPWR_PAGE_17_UPDATED:  // 🚴 Wheel Torque Data (Page 17)
-            break;
         case ANT_BPWR_PAGE_80_UPDATED:  // 📋 Manufacturer Info (Page 80)
         {
-            uint8_t raw_data[ANT_STANDARD_DATA_PAYLOAD_SIZE];
-            sd_ant_channel_id_get(p_profile->channel_number, NULL, NULL, &raw_data[0]);
-            uint8_t device_type = raw_data[1];  // Byte 1 = Device Type
+            uint8_t raw_data[ANT_STANDARD_DATA_PAYLOAD_SIZE] = {0};
+            ret_code_t err_code = sd_ant_channel_id_get(p_profile->channel_number, NULL, NULL, &raw_data[0]);
 
-            if (device_type != 11) {  // ✅ Only process Fitness Equipment (Type 11)
+            if (err_code != NRF_SUCCESS)
+            {
+                NRF_LOG_ERROR("🚨 ERROR: sd_ant_channel_id_get failed with code: 0x%08X", err_code);
+                return;
+            }
+
+            uint8_t device_type = raw_data[1];
+            if (device_type != 11)  // ✅ Only process Fitness Equipment (Type 11)
+            {
                 NRF_LOG_INFO("Ignoring Non-Fitness Device: Type %d", device_type);
                 return;
             }
@@ -604,16 +649,12 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
                          software_version, serial_number);
             break;
         }
-        
+
         default:
-            NRF_LOG_INFO("⚠️ Unknown ANT+ Page Update: %d", event);
+            NRF_LOG_WARNING("⚠️ Unknown ANT+ Page Update: %d", event);
             break;
     }
 }
-
-
-
-
 
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.

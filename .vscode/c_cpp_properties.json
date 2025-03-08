@@ -4,12 +4,12 @@
             "name": "nRF5",
             "includePath": [
                 "${workspaceFolder}/**",
-                "D:/nRF5_SDK/components/**",
                 "D:/nRF5_SDK/external/**",
                 "D:/nRF5_SDK/integration/**",
                 "D:/nRF5_SDK/modules/**",
                 "D:/nRF5_SDK/config/**",
                 "D:/nRF5_SDK/components/softdevice/s340/**",
+                "D:/nRF5_SDK/components/softdevice/common/**",
                 "D:/nRF5_SDK/components/libraries/**",
                 "D:/nRF5_SDK/components/toolchain/**",
                 "D:/nRF5_SDK/components/ant/**",

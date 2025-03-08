@@ -61,6 +61,20 @@
             "options": {
                 "cwd": "${workspaceFolder}/pca10056/s340/armgcc"
             }
+        },
+        {
+            "label": "Start GDB manually",
+            "type": "shell",
+            "command": "C:/gnu_arm_embedded/bin/arm-none-eabi-gdb.exe",
+            "args": [
+                "D:/nRF5_SDK/projects/SatsBike/pca10056/s340/armgcc/_build/nrf52840_xxaa.out"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "problemMatcher": [],
+            "detail": "Starts GDB for manual debugging input"
         }
     ]
 }
