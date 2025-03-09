@@ -49,7 +49,7 @@ static uint32_t power_measurement_char_add(ble_cps_t * p_cps) {
     attr_md.vloc = BLE_GATTS_VLOC_STACK;
 
     // Corrected initial value (14 bytes for full spec)
-    static uint8_t initial_value[14] = {0};
+    static uint8_t initial_value[4] = {0};
 
     // Assign attribute
     attr_char_value.p_uuid = &ble_uuid;
@@ -122,37 +122,21 @@ uint32_t ble_cps_init(ble_cps_t * p_cps) {
 void ble_cps_send_power_measurement(ble_cps_t * p_cps, uint16_t power_watts) {
     if (p_cps->conn_handle == BLE_CONN_HANDLE_INVALID) return;
 
-    uint8_t encoded_data[14] = {0};  // 14 bytes for full structure
+    uint8_t encoded_data[4] = {0};  // 4 bytes: Flags (2B) + Power (2B)
 
-    // ✅ 1. Flags (Enable all fields, even if 0)
-    encoded_data[0] = 0x30;  // `0b00110000` (Pedal Balance + Accumulated Torque enabled)
+    // ✅ 1. Flags (No optional fields)
+    encoded_data[0] = 0x00;  // No pedal balance, torque, cadence, or revolutions
     encoded_data[1] = 0x00;  // Flags are little-endian (LSB first)
 
-    // ✅ 2. Instantaneous Power (2 bytes, Little-Endian)
+    // ✅ 2. Instantaneous Power (Always included, 2 bytes, Little-Endian)
     encoded_data[2] = power_watts & 0xFF;
     encoded_data[3] = (power_watts >> 8);
 
-    // ✅ 3. Pedal Balance (Always 0, since we don't have it)
-    encoded_data[4] = 0x00;
-    encoded_data[5] = 0x00;
+    // ✅ Debug Logging
+    NRF_LOG_INFO("Sending Power Measurement: %d W", power_watts);
+    NRF_LOG_HEXDUMP_INFO(encoded_data, sizeof(encoded_data));
 
-    // ✅ 4. Accumulated Torque (Always 0, since we don't have it)
-    encoded_data[6] = 0x00;
-    encoded_data[7] = 0x00;
-
-    // ✅ 5. Cumulative Wheel Revolutions (Always 0, since we don't have it)
-    encoded_data[8]  = 0x00;
-    encoded_data[9]  = 0x00;
-
-    // ✅ 6. Last Wheel Event Time (Always 0, since we don't have it)
-    encoded_data[10] = 0x00;
-    encoded_data[11] = 0x00;
-
-    // ✅ 7. Cumulative Crank Revolutions (Always 0, since we don't have it)
-    encoded_data[12] = 0x00;
-    encoded_data[13] = 0x00;
-
-    // ✅ Send via BLE Notification
+    // ✅ Send BLE Notification
     ble_gatts_hvx_params_t hvx_params = {0};
     hvx_params.handle = p_cps->power_measurement_handles.value_handle;
     hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
@@ -161,11 +145,12 @@ void ble_cps_send_power_measurement(ble_cps_t * p_cps, uint16_t power_watts) {
     uint16_t len = sizeof(encoded_data);
     hvx_params.p_len = &len;  
 
-    NRF_LOG_INFO("Sending Power Measurement: %d W", power_watts);
-    NRF_LOG_HEXDUMP_INFO(encoded_data, sizeof(encoded_data));
-
-    sd_ble_gatts_hvx(p_cps->conn_handle, &hvx_params);
+    uint32_t err_code = sd_ble_gatts_hvx(p_cps->conn_handle, &hvx_params);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("Failed to send CPS notification: 0x%08X", err_code);
+    }
 }
+
 
 
 
