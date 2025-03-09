@@ -226,7 +226,7 @@
  
 
 #ifndef ANT_KEY_MANAGER_ENABLED
-#define ANT_KEY_MANAGER_ENABLED 1
+#define ANT_KEY_MANAGER_ENABLED 0
 #endif
 
 // </h> 

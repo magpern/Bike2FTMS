@@ -127,19 +127,47 @@ uint32_t ble_ftms_init(ble_ftms_t * p_ftms) {
 void ble_ftms_send_indoor_bike_data(ble_ftms_t * p_ftms, ble_ftms_data_t * p_data) {
     if (p_ftms->conn_handle == BLE_CONN_HANDLE_INVALID) return;
 
-    uint8_t encoded_data[9] = {0};
-    encoded_data[0] = 0x02;  // Flags: Speed/Cadence supported
-    encoded_data[1] = (p_data->cadence_rpm & 0xFF);
-    encoded_data[2] = (p_data->cadence_rpm >> 8);
-    encoded_data[3] = (p_data->power_watts & 0xFF);
-    encoded_data[4] = (p_data->power_watts >> 8);
+    uint8_t encoded_data[15] = {0};  // Ensure buffer is initialized to zero
 
+    // ✅ 1. Correct Flag Bytes (0x74 0x08 matches the NimBLE implementation)
+    encoded_data[0] = 0x74;  // Flag Byte 0: Speed, Cadence, Power, Resistance
+    encoded_data[1] = 0x08;  // Flag Byte 1: Time Present
+
+    // ✅ 2. Instantaneous Speed (Set to 0 km/h, since we don’t have speed data)
+    encoded_data[2] = 0x00;
+    encoded_data[3] = 0x00;
+
+    // ✅ 3. Instantaneous Cadence (Multiply by 2 for FTMS resolution)
+    uint16_t cadence = (uint16_t)(p_data->cadence_rpm * 2);
+    encoded_data[4] = cadence & 0xFF;
+    encoded_data[5] = (cadence >> 8) & 0xFF;
+
+    // ✅ 4. Total Distance (Set to 0 since we don’t track it yet)
+    encoded_data[6] = 0x00;
+    encoded_data[7] = 0x00;
+    encoded_data[8] = 0x00;
+
+    // ✅ 5. Resistance Level (Set to 0, we don’t control resistance)
+    encoded_data[9] = 0x00;
+    encoded_data[10] = 0x00;
+
+    // ✅ 6. Instantaneous Power (Signed 16-bit, Little-Endian)
+    int16_t power = (int16_t)p_data->power_watts;
+    encoded_data[11] = power & 0xFF;
+    encoded_data[12] = (power >> 8) & 0xFF;
+
+    // ✅ 7. Elapsed Time (Set to 0, we don't track elapsed time)
+    encoded_data[13] = 0x00;
+    encoded_data[14] = 0x00;
+
+    // ✅ Send FTMS Data Over BLE
     ble_gatts_hvx_params_t hvx_params = {0};
     hvx_params.handle = p_ftms->indoor_bike_data_handles.value_handle;
     hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
     hvx_params.p_data = encoded_data;
     hvx_params.p_len  = (uint16_t[]){sizeof(encoded_data)};
 
-    //Temporarely commented out
-    //sd_ble_gatts_hvx(p_ftms->conn_handle, &hvx_params);
+    sd_ble_gatts_hvx(p_ftms->conn_handle, &hvx_params);
 }
+
+

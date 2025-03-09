@@ -579,7 +579,7 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
         case ANT_BPWR_PAGE_16_UPDATED:
         {
             uint16_t power_watts = p_profile->page_16.instantaneous_power;
-            uint8_t cadence_rpm = 25; // p_profile->page_16.pedal_cadence;
+            uint8_t cadence_rpm = p_profile->common.instantaneous_cadence;
 
             NRF_LOG_INFO("🚴 Power: %d W, Cadence: %d RPM", power_watts, cadence_rpm);
 
