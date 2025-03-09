@@ -97,7 +97,7 @@
 #include "ant_interface.h"
 
 #include "ble_ftms.h"
-
+#include "device_info.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -422,35 +422,43 @@ static void services_init(void)
 
     // Initialize the Queued Write module.
     qwr_init.error_handler = nrf_qwr_error_handler;
-
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
 
     // Initialize FTMS Service
     err_code = ble_ftms_init(&m_ftms);
-    if (err_code != NRF_SUCCESS) {
-        NRF_LOG_ERROR("FTMS Init failed! Error code: 0x%08X", err_code);
-    }
     APP_ERROR_CHECK(err_code);
 
+    // Initialize Cycling Power Service (CPS)
     err_code = ble_cps_init(&m_cps);
-    if (err_code != NRF_SUCCESS) {
-        NRF_LOG_ERROR("Cycle Power Init failed! Error code: 0x%08X", err_code);
-    }
     APP_ERROR_CHECK(err_code);
 
-    // Initialize Device Information Service
+    // Initialize Device Information Service (DIS)
     memset(&dis_init, 0, sizeof(dis_init));
 
-    ble_srv_ascii_to_utf8(&dis_init.manufact_name_str, MANUFACTURER_NAME);
+    // **Dynamic Serial Number & HW Rev**
+    char serial_number[20] = {0};
+    char hardware_revision[20] = {0};
 
+    get_serial_number(serial_number, sizeof(serial_number));
+    get_hardware_revision(hardware_revision, sizeof(hardware_revision));
+
+    ble_srv_ascii_to_utf8(&dis_init.manufact_name_str, "Magpern DevOps");
+    ble_srv_ascii_to_utf8(&dis_init.model_num_str, "nRF52840");
+    ble_srv_ascii_to_utf8(&dis_init.serial_num_str, serial_number);
+    ble_srv_ascii_to_utf8(&dis_init.hw_rev_str, hardware_revision);
+
+    char version_str[16];
+    get_firmware_version(version_str, sizeof(version_str));  // Get version from build flag
+    ble_srv_ascii_to_utf8(&dis_init.fw_rev_str, version_str);  // Convert to BLE UTF-8 format
+    
     dis_init.dis_char_rd_sec = SEC_OPEN;
 
     err_code = ble_dis_init(&dis_init);
     APP_ERROR_CHECK(err_code);
-
-
 }
+
+
 
 
 /**@brief Connection Parameters Module handler.

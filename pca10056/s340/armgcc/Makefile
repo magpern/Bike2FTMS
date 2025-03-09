@@ -66,6 +66,7 @@ SRC_FILES += \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/ble_ftms.c \
   $(PROJ_DIR)/ble_cps.c \
+  $(PROJ_DIR)/device_info.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
@@ -183,7 +184,8 @@ CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
 CFLAGS += -Wno-array-bounds
-
+GIT_VERSION := $(shell git describe --tags --always --dirty)
+CFLAGS += -DFIRMWARE_VERSION=\"$(GIT_VERSION)\"
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
