@@ -14,8 +14,8 @@ static uint32_t power_feature_char_add(ble_cps_t * p_cps) {
     add_char_params.char_props.read = 1;  // **Read-only characteristic**
     add_char_params.read_access = SEC_OPEN;  // **Ensure open access**
 
-    // **Set feature value (matching real bike: 0C-00-04-00)**
-    static uint8_t feature_value[4] = {0x0C, 0x00, 0x04, 0x00};
+    // **No features, exept mandatory instantanious power
+    static uint8_t feature_value[4] = {0x00, 0x00, 0x00, 0x00};
 
     add_char_params.p_init_value = feature_value;
 
