@@ -67,6 +67,7 @@ SRC_FILES += \
   $(PROJ_DIR)/ble_ftms.c \
   $(PROJ_DIR)/ble_cps.c \
   $(PROJ_DIR)/device_info.c \
+  $(PROJ_DIR)/ble_custom_config.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \

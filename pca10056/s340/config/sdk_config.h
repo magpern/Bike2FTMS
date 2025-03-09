@@ -77,6 +77,10 @@
 #define ANT_CHANNEL_CONFIG_ENABLED 1
 #endif
 
+#ifndef BLE_CPS_ENABLED
+#define BLE_CPS_ENABLED 1
+#endif
+
 #ifndef BLE_FTMS_ENABLED
 #define BLE_FTMS_ENABLED 1
 #endif

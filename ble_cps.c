@@ -134,7 +134,6 @@ void ble_cps_send_power_measurement(ble_cps_t * p_cps, uint16_t power_watts) {
 
     // ✅ Debug Logging
     NRF_LOG_INFO("Sending Power Measurement: %d W", power_watts);
-    NRF_LOG_HEXDUMP_INFO(encoded_data, sizeof(encoded_data));
 
     // ✅ Send BLE Notification
     ble_gatts_hvx_params_t hvx_params = {0};

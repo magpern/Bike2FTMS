@@ -104,11 +104,11 @@
 #include "nrf_log_default_backends.h"
 #include "app_timer.h"
 #include "ble_cps.h"
+#include "ble_custom_config.h"
 
 #define WAKEUP_BUTTON_ID                0                                            /**< Button used to wake up the application. */
 #define BOND_DELETE_ALL_BUTTON_ID       1                                            /**< Button used for deleting all bonded centrals during startup. */
 
-#define DEVICE_NAME                     "SatsBike"                                 /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME               "Magpern Devops"                        /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                40                                           /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
 #define APP_ADV_DURATION                18000                                        /**< The advertising duration in units of seconds. */
@@ -165,6 +165,7 @@ NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NUL
 NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NULL);
 
 NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
+NRF_SDH_BLE_OBSERVER(m_custom_service_observer, APP_BLE_OBSERVER_PRIO, ble_custom_service_on_ble_evt, NULL);
 
 static ant_bpwr_disp_cb_t m_ant_bpwr_disp_cb;  // Display callback structure
 
@@ -232,7 +233,7 @@ static void ant_bpwr_rx_start(void)
     }
     NRF_LOG_INFO("✅ ANT+ Network Key Set Successfully!");
 
-    static const ant_channel_config_t bpwr_channel_config =
+    static ant_channel_config_t bpwr_channel_config =
     {
         .channel_number    = ANT_BPWR_ANT_CHANNEL,
         .channel_type      = BPWR_DISP_CHANNEL_TYPE,  // ANT+ Receiver
@@ -240,7 +241,7 @@ static void ant_bpwr_rx_start(void)
         .rf_freq           = BPWR_ANTPLUS_RF_FREQ,   // Default ANT+ Frequency
         .transmission_type = ANT_BPWR_TRANS_TYPE,  
         .device_type       = 11, // ANT+ Bike Power
-        .device_number     = 0,  // LISTEN TO ALL DEVICES
+        .device_number     = 0,  // Placeholder, will be updated later
         .channel_period    = BPWR_MSG_PERIOD,
         .network_number    = ANTPLUS_NETWORK_NUMBER,
     };
@@ -251,9 +252,12 @@ static void ant_bpwr_rx_start(void)
     NRF_LOG_INFO("   - Channel Type: %d", bpwr_channel_config.channel_type);
     NRF_LOG_INFO("   - RF Freq: %d", bpwr_channel_config.rf_freq);
     NRF_LOG_INFO("   - Device Type: %d", bpwr_channel_config.device_type);
-    NRF_LOG_INFO("   - Device Number: %d", bpwr_channel_config.device_number);
     NRF_LOG_INFO("   - Channel Period: %d", bpwr_channel_config.channel_period);
     NRF_LOG_INFO("   - Network Number: %d", bpwr_channel_config.network_number);
+
+    // ✅ Set the device number dynamically
+    bpwr_channel_config.device_number = m_ant_device_id;
+    NRF_LOG_INFO("Setting ANT+ Device ID to %d", m_ant_device_id);
 
     // Initialize the ANT BPWR channel
     NRF_LOG_INFO("📡 Calling ant_bpwr_disp_init...");
@@ -272,16 +276,6 @@ static void ant_bpwr_rx_start(void)
         return;
     }
     NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
-}
-
-
-/**@brief Attempt to both open the ant channel and start ble advertising.
-*/
-static void ant_and_adv_start(void)
-{
-    advertising_start();
-    ant_bpwr_rx_start();
-
 }
 
 
@@ -320,8 +314,9 @@ static void gap_params_init(void)
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
 
     err_code = sd_ble_gap_device_name_set(&sec_mode,
-                                          (const uint8_t *)DEVICE_NAME,
-                                          strlen(DEVICE_NAME));
+                        (const uint8_t *)ble_full_name,  // Loaded from flash
+                        strlen(ble_full_name));
+
     APP_ERROR_CHECK(err_code);
 
     err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_CYCLING_POWER_SENSOR);
@@ -861,6 +856,8 @@ int main(void)
     err_code = nrf_pwr_mgmt_init();
     APP_ERROR_CHECK(err_code);
 
+    custom_service_load_from_flash();  // Load stored ANT ID & BLE Name
+
     softdevice_setup();  // Initializes BLE and ANT+ stacks
 
     bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, NULL);
@@ -882,6 +879,8 @@ int main(void)
     NRF_LOG_INFO("🏁 Starting BLE and ANT+ independently...");
     
     advertising_start();  // Start BLE advertising
+    ble_custom_service_init();         // Initialize the custom BLE service
+
     ant_bpwr_rx_start();  // Start ANT+ reception
 
     err_code = app_timer_create(&m_adv_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, adv_restart_timeout_handler);
