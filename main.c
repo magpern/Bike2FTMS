@@ -103,12 +103,13 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 #include "app_timer.h"
+#include "ble_cps.h"
 
 #define WAKEUP_BUTTON_ID                0                                            /**< Button used to wake up the application. */
 #define BOND_DELETE_ALL_BUTTON_ID       1                                            /**< Button used for deleting all bonded centrals during startup. */
 
-#define DEVICE_NAME                     "Nordic_HRM"                                 /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME               "NordicSemiconductor"                        /**< Manufacturer. Will be passed to Device Information Service. */
+#define DEVICE_NAME                     "SatsBike"                                 /**< Name of device. Will be included in the advertising data. */
+#define MANUFACTURER_NAME               "Magpern Devops"                        /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                40                                           /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
 #define APP_ADV_DURATION                18000                                        /**< The advertising duration in units of seconds. */
 
@@ -149,6 +150,7 @@ NRF_BLE_QWR_DEF(m_qwr);                                                         
 NRF_BLE_GATT_DEF(m_gatt);                                                            /**< GATT module instance. */
 
 static ble_ftms_t m_ftms;  // BLE FTMS Service Instance
+static ble_cps_t m_cps; // BLE 0x1818 Cycling Power Service Instance
 
 
 static ant_bpwr_profile_t m_ant_bpwr; /* ANT Bike/Power profile instance */
@@ -353,6 +355,7 @@ static void advertising_init(void)
 
     ble_uuid_t adv_uuids[] = {
         {BLE_UUID_FTMS_SERVICE, BLE_UUID_TYPE_BLE},
+        {BLE_UUID_CYCLING_POWER_SERVICE, BLE_UUID_TYPE_BLE},  // Add Cycling Power Service
         {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}
     };
 
@@ -429,7 +432,13 @@ static void services_init(void)
         NRF_LOG_ERROR("FTMS Init failed! Error code: 0x%08X", err_code);
     }
     APP_ERROR_CHECK(err_code);
-    
+
+    err_code = ble_cps_init(&m_cps);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("Cycle Power Init failed! Error code: 0x%08X", err_code);
+    }
+    APP_ERROR_CHECK(err_code);
+
     // Initialize Device Information Service
     memset(&dis_init, 0, sizeof(dis_init));
 
@@ -591,6 +600,11 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
                     .cadence_rpm = cadence_rpm
                 };
                 ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
+            }
+
+            // ✅ Forward to Cycling Power Service
+            if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID) {
+                ble_cps_send_power_measurement(&m_cps, power_watts);
             }
             break;
         }

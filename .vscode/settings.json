@@ -10,6 +10,8 @@
         "bsp.h": "c",
         "ant_bsc.h": "c",
         "ant_bpwr.h": "c",
-        "sdk_common.h": "c"
+        "sdk_common.h": "c",
+        "ble_cps.h": "c",
+        "ble_srv_common.h": "c"
     }
 }
