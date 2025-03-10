@@ -95,6 +95,7 @@
 #include "ant_bpwr.h"
 #include "ant_parameters.h"
 #include "ant_interface.h"
+#include "nfc_handler.h"
 
 #include "ble_ftms.h"
 #include "device_info.h"
@@ -875,6 +876,12 @@ int main(void)
         NRF_LOG_INFO("Bonds erased!");
     }
 #endif // BONDING_ENABLE
+
+
+    #if NRFX_NFCT_ENABLED  // ✅ Only initialize NFC if enabled
+    // Initialize NFC
+        nfc_init();
+    #endif
 
     NRF_LOG_INFO("🏁 Starting BLE and ANT+ independently...");
     

@@ -148,6 +148,26 @@
 #endif
 
 
+// NFC is disabled
+#define NRFX_NFCT_ENABLED 0
+
+// Remove NFC-specific settings
+//#define NRFX_NFCT_TIMER_INSTANCE 4
+//#define NRFX_NFCT_CONFIG_IRQ_PRIORITY 6
+//#define NFC_PLATFORM_ENABLED 0  // ✅ Disable NFC platform support
+
+// Keep power and clock settings
+#define NRFX_POWER_CONFIG_IRQ_PRIORITY 6
+#define NRFX_POWER_ENABLED 1
+#define NRF_CLOCK_ENABLED 1
+#define NRFX_CLOCK_ENABLED 1
+#define NRFX_CLOCK_CONFIG_LF_SRC 1
+#define NRFX_CLOCK_CONFIG_IRQ_PRIORITY 6
+#define NRFX_CLOCK_CONFIG_LOG_ENABLED 0
+
+// Keep timer settings (if used elsewhere)
+#define NRFX_TIMER_ENABLED 1
+#define NRFX_TIMER4_ENABLED 1  // Keep only if TIMER4 is needed
 
 // Power bike profile related
 

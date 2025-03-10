@@ -68,6 +68,7 @@ SRC_FILES += \
   $(PROJ_DIR)/ble_cps.c \
   $(PROJ_DIR)/device_info.c \
   $(PROJ_DIR)/ble_custom_config.c \
+  $(PROJ_DIR)/nfc_handler.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
@@ -97,7 +98,14 @@ SRC_FILES += \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ant.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_soc.c \
-  $(SDK_ROOT)/modules/nrfx/hal/nrf_nvmc.c
+  $(SDK_ROOT)/modules/nrfx/hal/nrf_nvmc.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_nfct.c \
+  $(SDK_ROOT)/components/nfc/platform/nfc_platform.c \
+  $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c
+
+
 
 
 # Include folders common to all targets
@@ -155,6 +163,14 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/ant/ant_profiles/ant_bpwr/pages \
   $(SDK_ROOT)/components/ant/ant_profiles/ant_bpwr/utils \
   $(SDK_ROOT)/components/ant/ant_profiles/ant_common/pages \
+  $(SDK_ROOT)/components/nfc \
+  $(SDK_ROOT)/components/nfc/t2t_lib \
+  $(SDK_ROOT)/components/nfc/t2t_parser \
+  $(SDK_ROOT)/components/nfc/t4t_lib \
+  $(SDK_ROOT)/components/nfc/t4t_parser \
+  $(SDK_ROOT)/components/nfc/ndef \
+  $(SDK_ROOT)/components/nfc/platform \
+  $(SDK_ROOT)/modules/nrfx/hal
   $(PROJECT_PATH)
 
 
@@ -216,6 +232,7 @@ LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs
+LDFLAGS += -L$(SDK_ROOT)/components/nfc/t2t_lib
 
 nrf52840_xxaa: CFLAGS += -D__HEAP_SIZE=8192
 nrf52840_xxaa: CFLAGS += -D__STACK_SIZE=8192
@@ -225,6 +242,7 @@ nrf52840_xxaa: ASMFLAGS += -D__STACK_SIZE=8192
 # Add standard libraries at the very end of the linker input, after all objects
 # that may need symbols provided by these libraries.
 LIB_FILES += -lc -lnosys -lm
+LIB_FILES += -l:nfc_t2t_lib_gcc.a
 
 
 .PHONY: default help

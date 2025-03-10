@@ -14,6 +14,7 @@
                 "D:/nRF5_SDK/integration/**",                 // Integration files
                 "D:/nRF5_SDK/external/**",                    // External dependencies
                 "D:/nRF5_SDK/components/ant/**",
+                "D:/nRF5_SDK/components/nfc/**",
                 "D:/nRF5_SDK/components/ble/**",
                 "D:/nRF5_SDK/components/boards/**",
                 "D:/nRF5_SDK/components/toolchain/**",

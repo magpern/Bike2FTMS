@@ -11,9 +11,6 @@
 #define CUSTOM_SERVICE_UUID          0x1523
 #define CUSTOM_CHAR_DEVICE_INFO_UUID 0x1524  
 
-#define DEFAULT_BLE_NAME       "SatsBike"
-#define BLE_NAME_MAX_LEN       8
-#define DEFAULT_ANT_DEVICE_ID  18465  
 
 #define UICR_DEVICE_ID_ADDR  ((uint32_t *)(NRF_UICR_BASE + offsetof(NRF_UICR_Type, CUSTOMER[0])))
 #define UICR_BLE_NAME_ADDR   ((uint32_t *)(NRF_UICR_BASE + offsetof(NRF_UICR_Type, CUSTOMER[1])))
