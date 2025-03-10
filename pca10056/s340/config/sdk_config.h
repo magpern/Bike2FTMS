@@ -151,10 +151,12 @@
 // NFC is disabled
 #define NRFX_NFCT_ENABLED 0
 
-// Remove NFC-specific settings
-//#define NRFX_NFCT_TIMER_INSTANCE 4
-//#define NRFX_NFCT_CONFIG_IRQ_PRIORITY 6
-//#define NFC_PLATFORM_ENABLED 0  // ✅ Disable NFC platform support
+#if NRFX_NFCT_ENABLED
+    #define NRFX_NFCT_TIMER_INSTANCE 4
+    #define NRFX_NFCT_CONFIG_IRQ_PRIORITY 6
+    #define NFC_PLATFORM_ENABLED 1
+#endif
+
 
 // Keep power and clock settings
 #define NRFX_POWER_CONFIG_IRQ_PRIORITY 6

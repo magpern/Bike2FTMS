@@ -104,7 +104,9 @@ static void nrfx_nfc_event_handler(nrfx_nfct_evt_t const * p_evt)
     else if (p_evt->evt_id == NRFX_NFCT_EVT_ERROR)
     {
         NRF_LOG_ERROR("🚨 NFC Error! Code: 0x%08X", p_evt->params.error.reason);
-    }
+    } else {
+        NRF_LOG_INFO("🔍 Unknown NFC Event ID: 0x%08X", p_evt->evt_id);
+    }	
 }
 
 
@@ -131,6 +133,8 @@ void nfc_init(void)
 
     NRF_LOG_INFO("✅ NFC Initialized. Enabling Reader Mode...");
     nrfx_nfct_enable();
+    NRF_NFCT->PACKETPTR = (uint32_t)nfc_rx_buffer;
+    NRF_NFCT->TASKS_ACTIVATE = 1;
 }
 
 
