@@ -168,6 +168,9 @@ NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NUL
 NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
 NRF_SDH_BLE_OBSERVER(m_custom_service_observer, APP_BLE_OBSERVER_PRIO, ble_custom_service_on_ble_evt, NULL);
 
+APP_TIMER_DEF(m_ble_power_timer);
+void ble_power_timer_handler(void * p_context);  // ✅ Function declaration
+
 static ant_bpwr_disp_cb_t m_ant_bpwr_disp_cb;  // Display callback structure
 
 static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
@@ -288,6 +291,10 @@ static void timers_init(void)
 {
     // Initialize timer module
     uint32_t err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+
+    // ✅ Create a repeating timer that triggers every 2 seconds
+    err_code = app_timer_create(&m_ble_power_timer, APP_TIMER_MODE_REPEATED, ble_power_timer_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -570,6 +577,8 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
     }
 }
 
+static uint16_t latest_power_watts = 0;  // Store latest power value
+static uint8_t latest_cadence_rpm = 0;
 
 /** @brief Handle received ANT+ BPWR data.
  *
@@ -588,6 +597,14 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     {
         case ANT_BPWR_PAGE_16_UPDATED:
         {
+            // ✅ Store latest power & cadence values (DO NOT send BLE yet)
+            latest_power_watts = p_profile->page_16.instantaneous_power;
+            latest_cadence_rpm = p_profile->common.instantaneous_cadence;
+
+            NRF_LOG_INFO("🚴 Updated Power: %d W, Cadence: %d RPM (Stored)", latest_power_watts, latest_cadence_rpm);
+            break;
+
+            /*
             uint16_t power_watts = p_profile->page_16.instantaneous_power;
             uint8_t cadence_rpm = p_profile->common.instantaneous_cadence;
 
@@ -608,6 +625,7 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
                 ble_cps_send_power_measurement(&m_cps, power_watts);
             }
             break;
+            */
         }
 
         case ANT_BPWR_PAGE_80_UPDATED:  // 📋 Manufacturer Info (Page 80)
@@ -642,6 +660,21 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     }
 }
 
+void ble_power_timer_handler(void * p_context) {
+    if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID) {
+        ble_cps_send_power_measurement(&m_cps, latest_power_watts);
+        NRF_LOG_INFO("🚴 BLE Power Sent: %d W", latest_power_watts);
+    }
+
+    if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID) {
+        ble_ftms_data_t ftms_data = {
+            .power_watts = latest_power_watts,
+            .cadence_rpm = latest_cadence_rpm
+        };
+        ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
+        NRF_LOG_INFO("🚴 FTMS Power Sent: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
+    }
+}
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
  *
@@ -889,6 +922,11 @@ int main(void)
 
     err_code = app_timer_create(&m_adv_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, adv_restart_timeout_handler);
     APP_ERROR_CHECK(err_code);
+
+    // ✅ Start the timer (2000 ms = 2 seconds)
+    err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
+    APP_ERROR_CHECK(err_code);
+
 
     for (;;)
     {
