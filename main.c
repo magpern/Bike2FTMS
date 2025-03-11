@@ -519,9 +519,6 @@ static void conn_params_init(void)
 
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
-    NRF_LOG_INFO("📡 ANT+ Event Received - Event: %d", p_ant_evt->event);
-    return;
-
     switch (p_ant_evt->event)
     {
         case EVENT_RX:
