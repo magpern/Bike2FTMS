@@ -44,3 +44,11 @@ integration/
 modules/
 templates/
 tools/
+*.ewd
+*.uvoptx
+pca10056/s340/ses/flash_placement.xml
+*.emProject
+*.ewp
+*.icf
+*.uvprojx
+*.emSession
