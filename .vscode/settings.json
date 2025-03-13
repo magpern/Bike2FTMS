@@ -13,6 +13,7 @@
         "sdk_common.h": "c",
         "ble_cps.h": "c",
         "ble_srv_common.h": "c",
-        "nrfx.h": "c"
+        "nrfx.h": "c",
+        "ble_custom_config.h": "c"
     }
 }

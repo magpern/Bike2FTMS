@@ -205,6 +205,7 @@ CFLAGS += -fno-builtin -fshort-enums
 CFLAGS += -Wno-array-bounds
 GIT_VERSION := $(shell git describe --tags --always --dirty)
 CFLAGS += -DFIRMWARE_VERSION=\"$(GIT_VERSION)\"
+CFLAGS += -DDEBUG
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)

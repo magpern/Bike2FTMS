@@ -106,6 +106,12 @@
 #include "app_timer.h"
 #include "ble_cps.h"
 #include "ble_custom_config.h"
+#include "nrf_gpio.h"
+
+#define LED1_PIN NRF_GPIO_PIN_MAP(0,13)  // LED2 on nRF52840 DK
+#define LED2_PIN NRF_GPIO_PIN_MAP(0,14)  // LED2 on nRF52840 DK
+#define LED3_PIN NRF_GPIO_PIN_MAP(0,15)  // LED2 on nRF52840 DK
+#define LED4_PIN NRF_GPIO_PIN_MAP(0,16)  // LED2 on nRF52840 DK
 
 #define WAKEUP_BUTTON_ID                0                                            /**< Button used to wake up the application. */
 #define BOND_DELETE_ALL_BUTTON_ID       1                                            /**< Button used for deleting all bonded centrals during startup. */
@@ -167,6 +173,7 @@ NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NUL
 
 NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
 NRF_SDH_BLE_OBSERVER(m_custom_service_observer, APP_BLE_OBSERVER_PRIO, ble_custom_service_on_ble_evt, NULL);
+APP_TIMER_DEF(ant_restart_timer);  // Timer to restart ANT+
 
 APP_TIMER_DEF(m_ble_power_timer);
 void ble_power_timer_handler(void * p_context);  // ✅ Function declaration
@@ -179,15 +186,71 @@ static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
     .evt_handler = ant_bpwr_evt_handler,
 };
 
-APP_TIMER_DEF(m_adv_restart_timer);  // Timer to restart advertising
+void stop_ble_advertising(void)
+{
+    if (m_adv_handle == BLE_GAP_ADV_SET_HANDLE_NOT_SET)
+    {
+        NRF_LOG_WARNING("⚠️ BLE advertising handle not set, skipping stop.");
+        return;
+    }
+
+    uint32_t err_code = sd_ble_gap_adv_stop(m_adv_handle);  // ✅ Pass advertising handle
+
+    if (err_code == NRF_SUCCESS)
+    {
+        NRF_LOG_INFO("📴 BLE Advertising Stopped.");
+    }
+    else if (err_code == NRF_ERROR_INVALID_STATE)
+    {
+        NRF_LOG_WARNING("⚠️ BLE Advertising was not active, no need to stop.");
+    }
+    else
+    {
+        NRF_LOG_ERROR("🚨 Failed to stop BLE advertising. Error: 0x%08X", err_code);
+    }
+}
+
+// Grace period timer (10s)
+APP_TIMER_DEF(ble_shutdown_timer);
+static bool ble_started = false;
+static bool ant_active = false; // Tracks whether ANT+ is active
+static bool ble_shutdown_timer_running = false; // Track if the timer is running
+
+/**@brief Timer callback to stop BLE advertising after grace period */
+static void ble_shutdown_timer_handler(void *p_context)
+{
+    if (!ant_active) // Ensure ANT+ did not reconnect
+    {
+        // 🛑 Stop BLE Power Transmission Timer
+        NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
+        app_timer_stop(m_ble_power_timer);
+
+        NRF_LOG_WARNING("⚠️ ANT+ not found for 10 seconds. Stopping BLE...");
+
+        stop_ble_advertising();
+        ble_started = false;
+    }
+    ble_shutdown_timer_running = false;  // ✅ Reset timer flag
+}
 
 static void advertising_start(void);  // Forward declare function
 
+void start_ble_advertising(void)
+{
+    NRF_LOG_INFO("📡 Starting BLE Advertising...");
+    advertising_start();  // Use the existing function
+}
+
+
+
+/*
+APP_TIMER_DEF(m_adv_restart_timer);  // Timer to restart advertising
 static void adv_restart_timeout_handler(void * p_context)
 {
     NRF_LOG_INFO("⏰ Timer expired - Restarting BLE Advertising...");
-    advertising_start();  // Restart BLE advertising
+    start_ble_advertising();  // Restart BLE advertising
 }
+*/
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -237,6 +300,7 @@ static void ant_bpwr_rx_start(void)
     }
     NRF_LOG_INFO("✅ ANT+ Network Key Set Successfully!");
 
+
     static ant_channel_config_t bpwr_channel_config =
     {
         .channel_number    = ANT_BPWR_ANT_CHANNEL,
@@ -282,6 +346,16 @@ static void ant_bpwr_rx_start(void)
     NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
 }
 
+static void ant_restart_timer_handler(void *p_context)
+{
+    NRF_LOG_INFO("🔄 Timer expired - Restarting ANT+...");
+    uint32_t err_code = ant_bpwr_disp_open(&m_ant_bpwr);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("🚨 ant_bpwr_disp_open FAILED: 0x%08X", err_code);
+        return;
+    }
+    NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
+}
 
 /**@brief Timer initialization.
  *
@@ -293,9 +367,21 @@ static void timers_init(void)
     uint32_t err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
 
+    NRF_LOG_INFO("🛠️ BLE send intervall timer...");
     // ✅ Create a repeating timer that triggers every 2 seconds
     err_code = app_timer_create(&m_ble_power_timer, APP_TIMER_MODE_REPEATED, ble_power_timer_handler);
     APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_INFO("🛠️ BLE shutdown timer...");
+
+    // Initialize BLE shutdown timer
+    err_code = app_timer_create(&ble_shutdown_timer, APP_TIMER_MODE_SINGLE_SHOT, ble_shutdown_timer_handler);
+    APP_ERROR_CHECK(err_code);
+
+    // ✅ Create the ANT+ restart timer (single-shot)
+    err_code = app_timer_create(&ant_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, ant_restart_timer_handler);
+    APP_ERROR_CHECK(err_code);
+
 }
 
 
@@ -524,11 +610,29 @@ static void conn_params_init(void)
 }
 
 
+
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
+    #ifdef DEBUG  // ✅ Only flash LED in debug mode
+    nrf_gpio_pin_toggle(LED4_PIN);       // Toggle LED2
+    #endif
     switch (p_ant_evt->event)
     {
         case EVENT_RX:
+
+            if (!ble_started)
+            {
+                NRF_LOG_INFO("✅ ANT+ Device Found! Starting BLE...");
+                start_ble_advertising();
+                ble_started = true;
+                // ✅ Restart BLE Power Transmission Timer
+                NRF_LOG_INFO("⏳ Starting BLE power transmission timer...");
+                app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
+            }
+            // Cancel shutdown if BLE is running and ANT+ is active
+            ant_active = true;
+            app_timer_stop(ble_shutdown_timer);
+
             // Process the received data
             uint8_t * p_page_buffer = p_ant_evt->message.ANT_MESSAGE_aucPayload;
             uint8_t page_number = p_page_buffer[0];  // Page number is always in Byte 0
@@ -566,11 +670,34 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
             }
             break;
 
+        case EVENT_RX_SEARCH_TIMEOUT:
         case EVENT_CHANNEL_CLOSED:
-            NRF_LOG_INFO("🔄 ANT+ Channel Closed - Restarting...");
-            ant_bpwr_rx_start();  // Restart ANT+ without affecting BLE
-            break;
+            if (!ble_shutdown_timer_running)  // ✅ Prevent duplicate timer start
+            {
+                NRF_LOG_WARNING("⚠️ ANT+ Connection Lost. Starting BLE shutdown timer...");
+                ant_active = false;
+        
+                ble_shutdown_timer_running = true;  // ✅ Mark timer as running
+                app_timer_start(ble_shutdown_timer, APP_TIMER_TICKS(10000), NULL);
 
+                // ✅ Start the ANT+ restart timer (15 seconds)
+                NRF_LOG_INFO("⏳ Entering deep sleep for 15 seconds before restarting ANT+...");
+                app_timer_start(ant_restart_timer, APP_TIMER_TICKS(15000), NULL);
+            }
+            else
+            {
+                NRF_LOG_WARNING("⚠️ BLE shutdown timer already running. Skipping duplicate start.");
+            }
+            #ifdef DEBUG  // ✅ Only flash LED in debug mode
+                nrf_gpio_pin_set(LED4_PIN);       // Toggle LED4
+            #endif
+            break;
+        case EVENT_RX_FAIL:
+            NRF_LOG_WARNING("⚠️ ANT+ RX Fail: %d", p_ant_evt->message.ANT_MESSAGE_ucMesgID);
+            break;
+        case EVENT_RX_DATA_OVERFLOW:
+            NRF_LOG_WARNING("⚠️ ANT+ RX Data Overflow: %d", p_ant_evt->message.ANT_MESSAGE_ucMesgID);
+            break;
         default:
             NRF_LOG_INFO("⚠️ Unhandled ANT+ event: %d", p_ant_evt->event);
             break;
@@ -597,6 +724,8 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     {
         case ANT_BPWR_PAGE_16_UPDATED:
         {
+            uint8_t event_count = p_profile->page_16.update_event_count;  // ✅ Extract counter
+            NRF_LOG_INFO("🔄 ANT+ Power Event Count: %d", event_count);
             // ✅ Store latest power & cadence values (DO NOT send BLE yet)
             latest_power_watts = p_profile->page_16.instantaneous_power;
             latest_cadence_rpm = p_profile->common.instantaneous_cadence;
@@ -661,6 +790,12 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
 }
 
 void ble_power_timer_handler(void * p_context) {
+    NRF_LOG_INFO("🚴 Timer Fired");
+
+    #ifdef DEBUG  // ✅ Only flash LED in debug mode
+        nrf_gpio_pin_toggle(LED3_PIN);       // Toggle LED2
+    #endif
+
     if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID) {
         ble_cps_send_power_measurement(&m_cps, latest_power_watts);
         NRF_LOG_INFO("🚴 BLE Power Sent: %d W", latest_power_watts);
@@ -740,16 +875,18 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             if (p_ble_evt->evt.gap_evt.params.adv_set_terminated.reason ==
                 BLE_GAP_EVT_ADV_SET_TERMINATED_REASON_TIMEOUT)
             {
-                NRF_LOG_INFO("🔄 Advertising Timeout - Sleeping for 5 seconds before restarting...");
+                NRF_LOG_INFO("🔄 Advertising Timeout - For now no connections possible.. check this...");
                 err_code = bsp_indication_set(BSP_INDICATE_IDLE);
                 APP_ERROR_CHECK(err_code);
 
+                /*
                 // Start a timer to wake up after 5 seconds
                 err_code = app_timer_start(m_adv_restart_timer, APP_TIMER_TICKS(5000), NULL);
                 APP_ERROR_CHECK(err_code);
 
                 // Enter sleep mode (will wake up on the timer event)
                 sd_app_evt_wait();
+                */
             }
             break;
 
@@ -877,6 +1014,12 @@ static void softdevice_setup(void)
  */
 int main(void)
 {
+
+    #ifdef DEBUG  // ✅ Only flash LED in debug mode
+    nrf_gpio_cfg_output(LED4_PIN);       // Set LED2 as output
+    nrf_gpio_cfg_output(LED3_PIN);       // Set LED2 as output
+    #endif
+
     uint32_t err_code;
 
     err_code = NRF_LOG_INIT(NULL);
@@ -920,9 +1063,10 @@ int main(void)
 
     ant_bpwr_rx_start();  // Start ANT+ reception
 
+    /*
     err_code = app_timer_create(&m_adv_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, adv_restart_timeout_handler);
     APP_ERROR_CHECK(err_code);
-
+*/
     // ✅ Start the timer (2000 ms = 2 seconds)
     err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
     APP_ERROR_CHECK(err_code);
