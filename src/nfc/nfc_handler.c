@@ -1,7 +1,7 @@
 #include "nfc_handler.h"
 #include "nfc_t2t_lib.h"
 #include "nrf_log.h"
-#include "ble_custom_config.h"
+#include "../ble/ble_custom_config.h"
 #include "nrf_delay.h"
 #include "nrf_nvmc.h"
 #include <ctype.h>  // Required for hex conversion

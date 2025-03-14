@@ -63,13 +63,13 @@ SRC_FILES += \
   $(SDK_ROOT)/components/ant/ant_profiles/ant_bpwr/pages/ant_bpwr_common_data.c \
   $(SDK_ROOT)/components/ant/ant_key_manager/ant_key_manager.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
-  $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/ble_ftms.c \
-  $(PROJ_DIR)/ble_cps.c \
-  $(PROJ_DIR)/device_info.c \
-  $(PROJ_DIR)/ble_custom_config.c \
-  $(PROJ_DIR)/nfc_handler.c \
-  $(PROJ_DIR)/reed_sensor.c \
+  $(PROJ_DIR)/src/main.c \
+  $(PROJ_DIR)/src/ble/ble_ftms.c \
+  $(PROJ_DIR)/src/ble/ble_cps.c \
+  $(PROJ_DIR)/src/utils/device_info.c \
+  $(PROJ_DIR)/src/ble/ble_custom_config.c \
+  $(PROJ_DIR)/src/nfc/nfc_handler.c \
+  $(PROJ_DIR)/src/sensors/reed_sensor.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
@@ -105,9 +105,6 @@ SRC_FILES += \
   $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c
-
-
-
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -171,8 +168,15 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/nfc/t4t_parser \
   $(SDK_ROOT)/components/nfc/ndef \
   $(SDK_ROOT)/components/nfc/platform \
-  $(SDK_ROOT)/modules/nrfx/hal
-  $(PROJECT_PATH)
+  $(SDK_ROOT)/modules/nrfx/hal \
+  $(PROJ_DIR) \
+  $(PROJ_DIR)/src \
+  $(PROJ_DIR)/src/ble \
+  $(PROJ_DIR)/src/ant \
+  $(PROJ_DIR)/src/sensors \
+  $(PROJ_DIR)/src/utils \
+  $(PROJ_DIR)/src/nfc \
+  $(PROJ_DIR)/src/includes
 
 
 

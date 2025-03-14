@@ -64,8 +64,12 @@
  *       documentation.
  */
 
+
+
 #include <stdint.h>
 #include <string.h>
+#include "common_definitions.h"
+
 #include "nordic_common.h"
 #include "app_error.h"
 #include "app_timer.h"
@@ -91,68 +95,26 @@
 
 #include "ant_error.h"
 #include "ant_key_manager.h"
-//#include "ant_hrm.h"
 #include "ant_bpwr.h"
 #include "ant_parameters.h"
 #include "ant_interface.h"
-#include "nfc_handler.h"
+#include "nfc/nfc_handler.h"
 
-#include "ble_ftms.h"
-#include "device_info.h"
+#include "ble/ble_ftms.h"
+#include "utils/device_info.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 #include "app_timer.h"
-#include "ble_cps.h"
-#include "ble_custom_config.h"
+#include "ble/ble_cps.h"
+#include "ble/ble_custom_config.h"
 #include "nrf_gpio.h"
-#include "reed_sensor.h"
+#include "sensors/reed_sensor.h"
 
-#define LED1_PIN NRF_GPIO_PIN_MAP(0,13)  // LED2 on nRF52840 DK
-#define LED2_PIN NRF_GPIO_PIN_MAP(0,14)  // LED2 on nRF52840 DK
-#define LED3_PIN NRF_GPIO_PIN_MAP(0,15)  // LED2 on nRF52840 DK
-#define LED4_PIN NRF_GPIO_PIN_MAP(0,16)  // LED2 on nRF52840 DK
+                                    /**< Definition of 1 second, when 1 unit is 10 ms. */
+volatile uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
-#define WAKEUP_BUTTON_ID                0                                            /**< Button used to wake up the application. */
-#define BOND_DELETE_ALL_BUTTON_ID       1                                            /**< Button used for deleting all bonded centrals during startup. */
-
-#define MANUFACTURER_NAME               "Magpern Devops"                        /**< Manufacturer. Will be passed to Device Information Service. */
-#define APP_ADV_INTERVAL                40                                           /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
-#define APP_ADV_DURATION                18000                                        /**< The advertising duration in units of seconds. */
-
-#define APP_BLE_CONN_CFG_TAG            1                                            /**< A tag that refers to the BLE stack configuration we set with @ref sd_ble_cfg_set. Default tag is @ref BLE_CONN_CFG_TAG_DEFAULT. */
-
-#define IS_SRVC_CHANGED_CHARACT_PRESENT 0                                            /**< Whether or not to include the service_changed characteristic. If not enabled, the server's database cannot be changed for the lifetime of the device */
-
-#define CONN_INTERVAL_BASE              80                                           /**< Definition of 100 ms, when 1 unit is 1.25 ms. */
-#define SECOND_10_MS_UNITS              100                                          /**< Definition of 1 second, when 1 unit is 10 ms. */
-#define MIN_CONN_INTERVAL               (CONN_INTERVAL_BASE / 2)                     /**< Minimum acceptable connection interval (50 ms), Connection interval uses 1.25 ms units. */
-#define MAX_CONN_INTERVAL               (CONN_INTERVAL_BASE)                         /**< Maximum acceptable connection interval (100 ms), Connection interval uses 1.25 ms units. */
-#define SLAVE_LATENCY                   0                                            /**< Slave latency. */
-#define CONN_SUP_TIMEOUT                (4 * SECOND_10_MS_UNITS)                     /**< Connection supervisory timeout (4 seconds), Supervision Timeout uses 10 ms units. */
-
-#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(5000)                        /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
-#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000)                       /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
-#define MAX_CONN_PARAMS_UPDATE_COUNT    3                                            /**< Number of attempts before giving up the connection parameter negotiation. */
-
-#define SEC_PARAM_TIMEOUT               30                                           /**< Timeout for Pairing Request or Security Request (in seconds). */
-#define SEC_PARAM_BOND                  1                                            /**< Perform bonding. */
-#define SEC_PARAM_MITM                  0                                            /**< Man In The Middle protection not required. */
-#define SEC_PARAM_IO_CAPABILITIES       BLE_GAP_IO_CAPS_NONE                         /**< No I/O capabilities. */
-#define SEC_PARAM_OOB                   0                                            /**< Out Of Band data not available. */
-#define SEC_PARAM_MIN_KEY_SIZE          7                                            /**< Minimum encryption key size. */
-#define SEC_PARAM_MAX_KEY_SIZE          16                                           /**< Maximum encryption key size. */
-
-#define DEAD_BEEF                       0xDEADBEEF                                   /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
-
-#define ANT_BPWR_ANT_CHANNEL           0                                            /**< Default ANT Channel. */
-#define ANT_BPWR_DEVICE_NUMBER         18465                                            /**< Device Number. */
-#define ANT_BPWR_TRANS_TYPE            5                                            /**< Transmission Type. */
-#define ANTPLUS_NETWORK_NUMBER          0                                            /**< Network number. */
-#define ANT_PLUS_NETWORK_KEY ((uint8_t[8]){0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45})
-
-static volatile uint16_t                m_conn_handle = BLE_CONN_HANDLE_INVALID;     /**< Handle of the current connection. */
 static uint8_t                          m_adv_handle;                                /**< Advertising handle. */
 NRF_BLE_QWR_DEF(m_qwr);                                                              /**< Context for the Queued Write module.*/
 NRF_BLE_GATT_DEF(m_gatt);                                                            /**< GATT module instance. */
@@ -216,9 +178,9 @@ void stop_ble_advertising(void)
 
 // Grace period timer (10s)
 APP_TIMER_DEF(ble_shutdown_timer);
-static bool ble_started = false;
-static bool ant_active = false; // Tracks whether ANT+ is active
-static bool ble_shutdown_timer_running = false; // Track if the timer is running
+bool ble_started = false;
+bool ant_active = false; // Tracks whether ANT+ is active
+bool ble_shutdown_timer_running = false; // Track if the timer is running
 
 /**@brief Timer callback to stop BLE advertising after grace period */
 static void ble_shutdown_timer_handler(void *p_context)
@@ -244,17 +206,6 @@ void start_ble_advertising(void)
     NRF_LOG_INFO("📡 Starting BLE Advertising...");
     advertising_start();  // Use the existing function
 }
-
-
-
-/*
-APP_TIMER_DEF(m_adv_restart_timer);  // Timer to restart advertising
-static void adv_restart_timeout_handler(void * p_context)
-{
-    NRF_LOG_INFO("⏰ Timer expired - Restarting BLE Advertising...");
-    start_ble_advertising();  // Restart BLE advertising
-}
-*/
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -757,29 +708,6 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
 
             NRF_LOG_INFO("🚴 Updated Power: %d W, Cadence: %d RPM (Stored)", latest_power_watts, latest_cadence_rpm);
             break;
-
-            /*
-            uint16_t power_watts = p_profile->page_16.instantaneous_power;
-            uint8_t cadence_rpm = p_profile->common.instantaneous_cadence;
-
-            NRF_LOG_INFO("🚴 Power: %d W, Cadence: %d RPM", power_watts, cadence_rpm);
-
-            // ✅ Forward to BLE FTMS (if connected)
-            if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID)
-            {
-                ble_ftms_data_t ftms_data = {
-                    .power_watts = power_watts,
-                    .cadence_rpm = cadence_rpm
-                };
-                ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
-            }
-
-            // ✅ Forward to Cycling Power Service
-            if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID) {
-                ble_cps_send_power_measurement(&m_cps, power_watts);
-            }
-            break;
-            */
         }
 
         case ANT_BPWR_PAGE_80_UPDATED:  // 📋 Manufacturer Info (Page 80)
@@ -903,15 +831,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 NRF_LOG_INFO("🔄 Advertising Timeout - For now no connections possible.. check this...");
                 err_code = bsp_indication_set(BSP_INDICATE_IDLE);
                 APP_ERROR_CHECK(err_code);
-
-                /*
-                // Start a timer to wake up after 5 seconds
-                err_code = app_timer_start(m_adv_restart_timer, APP_TIMER_TICKS(5000), NULL);
-                APP_ERROR_CHECK(err_code);
-
-                // Enter sleep mode (will wake up on the timer event)
-                sd_app_evt_wait();
-                */
             }
             break;
 
