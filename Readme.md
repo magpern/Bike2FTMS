@@ -1,88 +1,95 @@
 # ANT+ to BLE FTMS Bridge
 
 ## **Project Overview**
-This project aims to create an **energy-efficient ANT+ to BLE bridge** using an **nRF52840** device. The goal is to receive data from **ANT+ spin bikes** (device type 11), process it, and transmit it via **BLE FTMS (Fitness Machine Service)**.
+This project implements an **ANT+ to BLE bridge** using an **nRF52840** microcontroller. The bridge listens for **ANT+ spin bike data** (device type 11), processes it, and transmits it using the **BLE FTMS (Fitness Machine Service)** protocol. This allows BLE-enabled fitness applications to receive real-time cycling data.
 
-The bridge must be optimized for **low-power operation**, ensuring that ANT+ and BLE **only run when needed**. This involves implementing sleep modes and efficient power management.
-
----
-
-## **Current Status**
-### ✅ **Existing Features**
-- **BLE FTMS Service**: Implements FTMS with characteristics for cycling data.
-- **ANT+ Bicycle Power Profile**: Receives data from ANT+ spin bikes.
-- **Device Configuration via BLE**: Allows setting ANT+ Device ID and BLE name via BLE.
-- **Basic Power Management**: Currently, both BLE and ANT+ are always on.
-
-### ❌ **Issues & Improvements Needed**
-- **High Power Consumption**: BLE and ANT+ are always enabled.
-- **No Sleep Mode**: The device does not enter low-power mode when idle.
-- **No ANT+ Polling Strategy**: The device should wake periodically to check for ANT+ signals instead of always listening.
+The firmware is optimized for **low-power operation**, implementing sleep modes and event-driven ANT+ scanning to ensure efficiency.
 
 ---
 
-## **To-Do List**
-### **1️⃣ Implement Sleep & Wake Strategies**
-- [ ] **Setup Mode**: Keep BLE active when no ANT+ device is found for configuration.
-- [ ] **Sleep if No ANT+ Device Found**:
-  - If the configured ANT+ device is **not broadcasting**, enter **deep sleep** for a set time.
-  - Wake up, scan for ANT+ messages, then return to sleep if none are found.
-- [ ] **Wake on ANT+ Detection**:
-  - Enable BLE **only** when valid ANT+ messages are received.
-
-### **2️⃣ Conditional BLE Activation & Timeout**
-- [ ] **Disable BLE Until ANT+ Detected**:
-  - BLE should not start advertising until an ANT+ device is active.
-- [ ] **Turn Off BLE When No ANT+ Messages**:
-  - If no ANT+ messages arrive for **X minutes**, BLE should stop and the device should enter sleep mode.
-
-### **3️⃣ Improve Configuration & Persistence**
-- [ ] **Save Device ID & BLE Name**:
-  - Ensure ANT+ Device ID and BLE name persist across reboots.
-- [ ] **Enable NFC for Quick Setup** (Future Improvement):
-  - Use NFC to set ANT+ Device ID and BLE name.
-
-### **4️⃣ Test & Optimize Power Consumption**
-- [ ] **Measure Power Usage**:
-  - Test power consumption in different states (Active, Sleep, Wake-up).
-- [ ] **Optimize Sleep & Wake Timers**:
-  - Find the best trade-off between power savings and responsiveness.
+## **Features**
+### ✅ **Implemented Features**
+- **BLE FTMS Support**
+  - Implements FTMS characteristics for cycling power, cadence, and training status.
+  - Supports **Indoor Bike Data (0x2AD2)**, **Training Status (0x2AD3)**, and **Fitness Machine Status (0x2ADA)**.
+- **ANT+ Bicycle Power Profile (Device Type 11)**
+  - Listens for ANT+ power meter broadcasts.
+  - Parses power, cadence, and additional data.
+- **Device Configuration via BLE**
+  - Allows setting the **ANT+ Device ID** and **BLE name** dynamically.
+  - Settings persist across reboots using **UICR flash storage**.
+- **NFC Support for Quick Setup**
+  - Scans NFC tags to configure **ANT+ Device ID and BLE name**.
+- **Power Management Features**
+  - BLE advertising starts **only when ANT+ data is detected**.
+  - Automatically **enters deep sleep** when no ANT+ devices are broadcasting.
+  - Implements **wake-up on ANT+ signal detection**.
 
 ---
 
-## **Development Setup**
-### **Required Tools**
+## **System Workflow**
+1. The **nRF52840 wakes up** and starts scanning for ANT+ broadcasts.
+2. If a valid **ANT+ spin bike** is found:
+   - BLE advertising starts.
+   - FTMS notifications begin transmitting cycling data.
+3. If no ANT+ data is detected for **10 seconds**:
+   - BLE advertising stops.
+   - The device enters **deep sleep**.
+4. The device **periodically wakes up** to check for new ANT+ broadcasts.
+
+---
+
+## **Setup & Usage**
+### **1️⃣ Required Development Tools**
 - **nRF5 SDK v17.1.0**
-- **SoftDevice S140 v7.2.0**
+- **SoftDevice S340 v7.2.0**
 - **GNU ARM Toolchain** (for compilation)
 - **nrfjprog** (for flashing/debugging)
 - **Segger J-Link** (for debugging)
 
-### **Project Structure**
+### **2️⃣ Project Directory Structure**
 ```
 D:/nRF5_SDK/projects/bleant_multi
 │-- pca10056/s340/armgcc   # Build and Makefiles
 │-- src/                   # Source code
 │-- include/               # Header files
+│-- Readme.md              # Project documentation
 ```
 
-### **Build & Flashing Commands**
+### **3️⃣ Build & Flashing Commands**
 ```sh
 cd D:/nRF5_SDK/projects/bleant_multi/pca10056/s340/armgcc
 make
 make flash
 ```
 
-### **Debugging in VS Code**
+### **4️⃣ Debugging in VS Code**
 - Ensure `nrfjprog` and `J-Link` are installed.
 - Use `make debug` for live debugging.
 
 ---
 
+## **To-Do List & Future Improvements**
+### **1️⃣ Final Testing & Optimization**
+- [ ] Verify ANT+ scanning reliability with multiple bikes.
+- [ ] Test FTMS notifications with fitness apps.
+- [ ] Measure power consumption in different states.
+
+### **2️⃣ Multi-Bike & Multi-Client Support**
+- [ ] Enable support for **multiple ANT+ bikes** (future scope).
+- [ ] Allow up to **15 BLE clients** to connect (future scope).
+
+### **3️⃣ Additional Enhancements**
+- [ ] Implement a **custom GATT service** for BLE client configuration.
+- [ ] Improve logging and debugging capabilities.
+
+---
+
 ## **Next Steps**
-- [ ] **Confirm Implementation Plan** before coding.
-- [ ] **Start with Sleep & Wake Strategies**.
-- [ ] **Test & Optimize Power Management**.
+- 🚀 **Prepare for final acceptance testing.**
+- 🔬 **Measure power consumption and optimize sleep modes.**
+- 📡 **Test real-world BLE & ANT+ performance.**
 
-🚀 **Let’s make this the most efficient ANT+ to BLE bridge possible!**
+---
 
+✅ **This project is near completion, ready for acceptance testing!**
