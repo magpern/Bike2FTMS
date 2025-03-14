@@ -291,6 +291,13 @@ static void advertising_start(void)
 
 static void ant_bpwr_rx_start(void)
 {
+
+    if (m_ant_device_id == 0)
+    {
+        NRF_LOG_WARNING("🚫 No ANT+ Device ID defined. Skipping ANT+ activation.");
+        return;
+    }
+
     uint32_t err_code;
 
     NRF_LOG_INFO("🔄 Initializing ANT+ BPWR Channel...");
@@ -1077,7 +1084,15 @@ int main(void)
     NRF_LOG_INFO("🏁 Starting BLE and ANT+ independently...");
     
     advertising_start();  // Start BLE advertising
-    ble_custom_service_init();         // Initialize the custom BLE service
+        // ✅ Check if we need to activate ANT+
+    if (m_ant_device_id == 0)
+    {
+        NRF_LOG_WARNING("🔄 Setup Mode: ANT+ Disabled, BLE Always On.");
+    }
+    else
+    {
+        ant_bpwr_rx_start();  // Start ANT+ reception
+    }
 
     ant_bpwr_rx_start();  // Start ANT+ reception
 
@@ -1085,11 +1100,12 @@ int main(void)
     err_code = app_timer_create(&m_adv_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, adv_restart_timeout_handler);
     APP_ERROR_CHECK(err_code);
 */
-    // ✅ Start the timer (2000 ms = 2 seconds)
-    err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
-    APP_ERROR_CHECK(err_code);
-
-
+    // ✅ Start BLE periodic update timer (only if ANT+ is active)
+    if (m_ant_device_id != 0)
+    {
+        err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
+        APP_ERROR_CHECK(err_code);
+    }
     for (;;)
     {
         if (NRF_LOG_PROCESS() == false)

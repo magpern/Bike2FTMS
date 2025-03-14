@@ -7,7 +7,7 @@
 #define MAX_BLE_FULL_NAME_LEN 15  // Includes custom name + "_12345"
 #define DEFAULT_BLE_NAME       "SatsBike"
 #define BLE_NAME_MAX_LEN       8
-#define DEFAULT_ANT_DEVICE_ID  18465  
+#define DEFAULT_ANT_DEVICE_ID 0; // 18465  
 
 extern char ble_full_name[MAX_BLE_FULL_NAME_LEN];  // ✅ This is now accessible in `main.c`
 extern char m_ble_name[BLE_NAME_MAX_LEN + 1];
