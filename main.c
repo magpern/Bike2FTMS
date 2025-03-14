@@ -107,6 +107,7 @@
 #include "ble_cps.h"
 #include "ble_custom_config.h"
 #include "nrf_gpio.h"
+#include "reed_sensor.h"
 
 #define LED1_PIN NRF_GPIO_PIN_MAP(0,13)  // LED2 on nRF52840 DK
 #define LED2_PIN NRF_GPIO_PIN_MAP(0,14)  // LED2 on nRF52840 DK
@@ -177,6 +178,7 @@ APP_TIMER_DEF(ant_restart_timer);  // Timer to restart ANT+
 
 APP_TIMER_DEF(m_ble_power_timer);
 void ble_power_timer_handler(void * p_context);  // ✅ Function declaration
+static bool system_sleep_pending = false;  // ✅ Track if sleep has already been triggered
 
 static ant_bpwr_disp_cb_t m_ant_bpwr_disp_cb;  // Display callback structure
 
@@ -186,6 +188,7 @@ static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
     .evt_handler = ant_bpwr_evt_handler,
 };
 
+
 void stop_ble_advertising(void)
 {
     if (m_adv_handle == BLE_GAP_ADV_SET_HANDLE_NOT_SET)
@@ -193,7 +196,8 @@ void stop_ble_advertising(void)
         NRF_LOG_WARNING("⚠️ BLE advertising handle not set, skipping stop.");
         return;
     }
-
+    NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
+    app_timer_stop(m_ble_power_timer);
     uint32_t err_code = sd_ble_gap_adv_stop(m_adv_handle);  // ✅ Pass advertising handle
 
     if (err_code == NRF_SUCCESS)
@@ -336,6 +340,7 @@ static void ant_bpwr_rx_start(void)
     }
     NRF_LOG_INFO("✅ ant_bpwr_disp_init SUCCESS!");
 
+    
     // Open the ANT+ BPWR channel
     NRF_LOG_INFO("📡 Calling ant_bpwr_disp_open...");
     err_code = ant_bpwr_disp_open(&m_ant_bpwr);
@@ -348,12 +353,14 @@ static void ant_bpwr_rx_start(void)
 
 static void ant_restart_timer_handler(void *p_context)
 {
+    system_sleep_pending = false;  // ✅ Reset flag when waking up
     NRF_LOG_INFO("🔄 Timer expired - Restarting ANT+...");
     uint32_t err_code = ant_bpwr_disp_open(&m_ant_bpwr);
     if (err_code != NRF_SUCCESS) {
         NRF_LOG_ERROR("🚨 ant_bpwr_disp_open FAILED: 0x%08X", err_code);
         return;
     }
+    ant_active = true;  // ✅ Set ANT+ active flag
     NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
 }
 
@@ -672,26 +679,37 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 
         case EVENT_RX_SEARCH_TIMEOUT:
         case EVENT_CHANNEL_CLOSED:
-            if (!ble_shutdown_timer_running)  // ✅ Prevent duplicate timer start
+            if (!system_sleep_pending)
             {
-                NRF_LOG_WARNING("⚠️ ANT+ Connection Lost. Starting BLE shutdown timer...");
+                NRF_LOG_WARNING("⚠️ ANT+ Connection Lost. Stopping BLE and entering deep sleep...");
                 ant_active = false;
+                system_sleep_pending = true;
         
-                ble_shutdown_timer_running = true;  // ✅ Mark timer as running
-                app_timer_start(ble_shutdown_timer, APP_TIMER_TICKS(10000), NULL);
-
-                // ✅ Start the ANT+ restart timer (15 seconds)
-                NRF_LOG_INFO("⏳ Entering deep sleep for 15 seconds before restarting ANT+...");
-                app_timer_start(ant_restart_timer, APP_TIMER_TICKS(15000), NULL);
+                // ✅ Stop BLE Immediately
+                stop_ble_advertising();
+                ble_started = false;
+        
+                // ✅ Try to Close ANT+ Channel
+                NRF_LOG_INFO("🛑 Closing ANT+ Channel...");
+                uint32_t err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
+                if (err_code == NRF_SUCCESS) {
+                    NRF_LOG_INFO("✅ ANT+ Channel Closed Successfully");
+                } else {
+                    NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed.");
+                }
+        
+                // ✅ Enable reed switch before deep sleep
+                reed_sensor_enable();
+        
+                // ✅ Enter Deep Sleep
+                NRF_LOG_INFO("🛑 System entering deep sleep. Waiting for flywheel movement...");
+                nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+                sd_power_system_off();
             }
-            else
-            {
-                NRF_LOG_WARNING("⚠️ BLE shutdown timer already running. Skipping duplicate start.");
-            }
-            #ifdef DEBUG  // ✅ Only flash LED in debug mode
-                nrf_gpio_pin_set(LED4_PIN);       // Toggle LED4
-            #endif
             break;
+        
+            
+            
         case EVENT_RX_FAIL:
             NRF_LOG_WARNING("⚠️ ANT+ RX Fail: %d", p_ant_evt->message.ANT_MESSAGE_ucMesgID);
             break;
@@ -1008,8 +1026,6 @@ static void softdevice_setup(void)
 
 
 
-
-
 /**@brief Application main function.
  */
 int main(void)
@@ -1034,7 +1050,9 @@ int main(void)
 
     softdevice_setup();  // Initializes BLE and ANT+ stacks
 
-    bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, NULL);
+    reed_sensor_init(NULL);
+
+    //bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, NULL);
     
     gatt_init();
     gap_params_init();
