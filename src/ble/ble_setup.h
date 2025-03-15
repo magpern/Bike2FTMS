@@ -23,6 +23,12 @@ extern ble_cps_t m_cps; // BLE 0x1818 Cycling Power Service Instance
 extern uint16_t latest_power_watts;  // Accessible globally
 extern uint8_t latest_cadence_rpm;
 
+extern app_timer_id_t ble_shutdown_timer;  
+extern bool ble_started;
+extern bool ant_active;
+extern bool ble_shutdown_timer_running;
+extern void ble_shutdown_timer_handler(void *p_context);
+extern void stop_ble_advertising(void);
 
 /**@brief Initializes GAP parameters including device name, appearance, and connection parameters.
  */

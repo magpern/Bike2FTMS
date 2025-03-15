@@ -148,53 +148,7 @@ static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
 };
 
 
-void stop_ble_advertising(void)
-{
-    if (m_adv_handle == BLE_GAP_ADV_SET_HANDLE_NOT_SET)
-    {
-        NRF_LOG_WARNING("⚠️ BLE advertising handle not set, skipping stop.");
-        return;
-    }
-    NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
-    app_timer_stop(m_ble_power_timer);
-    uint32_t err_code = sd_ble_gap_adv_stop(m_adv_handle);  // ✅ Pass advertising handle
 
-    if (err_code == NRF_SUCCESS)
-    {
-        NRF_LOG_INFO("📴 BLE Advertising Stopped.");
-    }
-    else if (err_code == NRF_ERROR_INVALID_STATE)
-    {
-        NRF_LOG_WARNING("⚠️ BLE Advertising was not active, no need to stop.");
-    }
-    else
-    {
-        NRF_LOG_ERROR("🚨 Failed to stop BLE advertising. Error: 0x%08X", err_code);
-    }
-}
-
-// Grace period timer (10s)
-APP_TIMER_DEF(ble_shutdown_timer);
-bool ble_started = false;
-bool ant_active = false; // Tracks whether ANT+ is active
-bool ble_shutdown_timer_running = false; // Track if the timer is running
-
-/**@brief Timer callback to stop BLE advertising after grace period */
-static void ble_shutdown_timer_handler(void *p_context)
-{
-    if (!ant_active) // Ensure ANT+ did not reconnect
-    {
-        // 🛑 Stop BLE Power Transmission Timer
-        NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
-        app_timer_stop(m_ble_power_timer);
-
-        NRF_LOG_WARNING("⚠️ ANT+ not found for 10 seconds. Stopping BLE...");
-
-        stop_ble_advertising();
-        ble_started = false;
-    }
-    ble_shutdown_timer_running = false;  // ✅ Reset timer flag
-}
 
 static void advertising_start(void);  // Forward declare function
 
@@ -696,8 +650,6 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     }
 }
 
-
-
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
  *
  * @param[in] p_ble_evt  Bluetooth stack event.
@@ -783,72 +735,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
     }
 }
-
-
-#ifdef BONDING_ENABLE
-/**@brief Function for handling Peer Manager events.
- *
- * @param[in] p_evt  Peer Manager event.
- */
-static void pm_evt_handler(pm_evt_t const * p_evt)
-{
-    pm_handler_on_pm_evt(p_evt);
-    pm_handler_disconnect_on_sec_failure(p_evt);
-    pm_handler_flash_clean(p_evt);
-
-    switch (p_evt->evt_id)
-    {
-        case PM_EVT_PEERS_DELETE_SUCCEEDED:
-            advertising_start();
-            break;
-
-        default:
-            break;
-    }
-}
-
-
-/**@brief Function for the Peer Manager initialization.
- *
- * @param[in] erase_bonds  Indicates whether bonding information should be cleared from
- *                         persistent storage during initialization of the Peer Manager.
- */
-static void peer_manager_init(bool erase_bonds)
-{
-    ble_gap_sec_params_t sec_param;
-    ret_code_t           err_code;
-
-    err_code = pm_init();
-    APP_ERROR_CHECK(err_code);
-
-    if (erase_bonds)
-    {
-        err_code = pm_peers_delete();
-        APP_ERROR_CHECK(err_code);
-    }
-
-    memset(&sec_param, 0, sizeof(ble_gap_sec_params_t));
-
-    // Security parameters to be used for all security procedures.
-    sec_param.bond           = SEC_PARAM_BOND;
-    sec_param.mitm           = SEC_PARAM_MITM;
-    sec_param.io_caps        = SEC_PARAM_IO_CAPABILITIES;
-    sec_param.oob            = SEC_PARAM_OOB;
-    sec_param.min_key_size   = SEC_PARAM_MIN_KEY_SIZE;
-    sec_param.max_key_size   = SEC_PARAM_MAX_KEY_SIZE;
-    sec_param.kdist_own.enc  = 1;
-    sec_param.kdist_own.id   = 1;
-    sec_param.kdist_peer.enc = 1;
-    sec_param.kdist_peer.id  = 1;
-
-    err_code = pm_sec_params_set(&sec_param);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = pm_register(pm_evt_handler);
-    APP_ERROR_CHECK(err_code);
-}
-#endif // BONDING_ENABLE
-
 
 /**@brief BLE + ANT stack initialization.
  *

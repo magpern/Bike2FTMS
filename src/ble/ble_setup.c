@@ -17,6 +17,11 @@
 #include "ble_ftms.h"
 #include "ble_cps.h"
 
+app_timer_id_t ble_shutdown_timer;
+bool ble_started = false;
+bool ant_active = false;
+bool ble_shutdown_timer_running = false;
+
 
 NRF_BLE_GATT_DEF(m_gatt);
 uint8_t m_adv_handle;      /**< Advertising handle. */
@@ -86,3 +91,46 @@ void ble_power_timer_handler(void * p_context) {
         NRF_LOG_INFO("🚴 FTMS Power Sent: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
     }
 }
+
+void stop_ble_advertising(void)
+{
+    if (m_adv_handle == BLE_GAP_ADV_SET_HANDLE_NOT_SET)
+    {
+        NRF_LOG_WARNING("⚠️ BLE advertising handle not set, skipping stop.");
+        return;
+    }
+    NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
+    app_timer_stop(m_ble_power_timer);
+    uint32_t err_code = sd_ble_gap_adv_stop(m_adv_handle);  // ✅ Pass advertising handle
+
+    if (err_code == NRF_SUCCESS)
+    {
+        NRF_LOG_INFO("📴 BLE Advertising Stopped.");
+    }
+    else if (err_code == NRF_ERROR_INVALID_STATE)
+    {
+        NRF_LOG_WARNING("⚠️ BLE Advertising was not active, no need to stop.");
+    }
+    else
+    {
+        NRF_LOG_ERROR("🚨 Failed to stop BLE advertising. Error: 0x%08X", err_code);
+    }
+}
+
+/**@brief Timer callback to stop BLE advertising after grace period */
+void ble_shutdown_timer_handler(void *p_context)
+{
+    if (!ant_active) // Ensure ANT+ did not reconnect
+    {
+        // 🛑 Stop BLE Power Transmission Timer
+        NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
+        app_timer_stop(m_ble_power_timer);
+
+        NRF_LOG_WARNING("⚠️ ANT+ not found for 10 seconds. Stopping BLE...");
+
+        stop_ble_advertising();
+        ble_started = false;
+    }
+    ble_shutdown_timer_running = false;  // ✅ Reset timer flag
+}
+
