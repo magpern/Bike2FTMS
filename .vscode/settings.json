@@ -17,6 +17,7 @@
         "ble_custom_config.h": "c",
         "nfc_handler.h": "c",
         "reed_sensor.h": "c",
-        "nrf_log.h": "c"
+        "nrf_log.h": "c",
+        "common_definitions.h": "c"
     }
 }

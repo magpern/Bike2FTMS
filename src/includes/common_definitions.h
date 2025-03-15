@@ -1,6 +1,7 @@
 #include <stdint.h>  // ✅ For uint16_t, etc.
 #include <stdbool.h> // ✅ Fixes "identifier bool is undefined"
 #include "ble_types.h"
+#include "nrf_gpio.h"
 
 #define LED1_PIN NRF_GPIO_PIN_MAP(0,13)  // LED1 on nRF52840 DK
 #define LED2_PIN NRF_GPIO_PIN_MAP(0,14)  // LED2 on nRF52840 DK
@@ -53,3 +54,4 @@ extern bool ble_started;  // Track if BLE is running
 extern bool ant_active;   // Track if ANT+ is running
 extern bool ble_shutdown_timer_running; // If BLE shutdown timer is active
 extern volatile uint16_t m_conn_handle; // BLE connection handle
+
