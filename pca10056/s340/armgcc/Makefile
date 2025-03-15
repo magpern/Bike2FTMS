@@ -71,6 +71,7 @@ SRC_FILES += \
   $(PROJ_DIR)/src/nfc/nfc_handler.c \
   $(PROJ_DIR)/src/ble/ble_setup.c \
   $(PROJ_DIR)/src/sensors/reed_sensor.c \
+  $(PROJ_DIR)/src/ble/ble_ant_scan_service.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \

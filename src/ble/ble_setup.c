@@ -12,6 +12,7 @@
 #include "common_definitions.h"
 
 #include "ble_custom_config.h"
+#include "ble_ant_scan_service.h"
 
 #include "app_error.h"
 #include "ble_ftms.h"
@@ -240,6 +241,9 @@ void services_init(void)
 
     err_code = ble_dis_init(&dis_init);
     APP_ERROR_CHECK(err_code);
+
+    ble_ant_scan_service_init();
+
 }
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
