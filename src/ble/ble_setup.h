@@ -30,6 +30,12 @@ extern bool ble_shutdown_timer_running;
 extern void ble_shutdown_timer_handler(void *p_context);
 extern void stop_ble_advertising(void);
 
+void start_ble_advertising(void);
+void softdevice_setup(void);
+void services_init(void);
+void conn_params_init(void);
+void advertising_init(void);
+
 /**@brief Initializes GAP parameters including device name, appearance, and connection parameters.
  */
 void gap_params_init(void);

@@ -7,6 +7,7 @@
 #include "nrf_pwr_mgmt.h"
 #include "nrf_nvmc.h"
 #include <string.h>
+#include <nrf_sdh_ble.h>
 
 #define CUSTOM_SERVICE_UUID          0x1523
 #define CUSTOM_CHAR_DEVICE_INFO_UUID 0x1524  
@@ -14,6 +15,8 @@
 
 #define UICR_DEVICE_ID_ADDR  ((uint32_t *)(NRF_UICR_BASE + offsetof(NRF_UICR_Type, CUSTOMER[0])))
 #define UICR_BLE_NAME_ADDR   ((uint32_t *)(NRF_UICR_BASE + offsetof(NRF_UICR_Type, CUSTOMER[1])))
+
+NRF_SDH_BLE_OBSERVER(m_custom_service_observer, APP_BLE_OBSERVER_PRIO, ble_custom_service_on_ble_evt, NULL);
 
 static uint16_t m_service_handle;
 static ble_gatts_char_handles_t m_device_info_handles;
