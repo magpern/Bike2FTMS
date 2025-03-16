@@ -441,7 +441,7 @@ void advertising_init(void)
     ble_uuid_t adv_uuids[] = {
         {BLE_UUID_FTMS_SERVICE, BLE_UUID_TYPE_BLE},          // ✅ FTMS Service
         {BLE_UUID_CYCLING_POWER_SERVICE, BLE_UUID_TYPE_BLE}, // ✅ Cycling Power Service
-        {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE} // ✅ Device Info Service
+        {ANT_SCAN_SERVICE_UUID, BLE_UUID_TYPE_BLE} // ✅ Device Info Service
     };
 
     // Build and set advertising data.
@@ -470,8 +470,8 @@ void advertising_init(void)
     adv_params.properties.type = BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED;
     adv_params.filter_policy   = BLE_GAP_ADV_FP_ANY;
     adv_params.interval        = APP_ADV_INTERVAL;
-    adv_params.duration        = APP_ADV_DURATION;
-
+    adv_params.duration        = BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED;
+    
     err_code = sd_ble_gap_adv_set_configure(&m_adv_handle, &advdata_enc, &adv_params);
     APP_ERROR_CHECK(err_code);
 

@@ -167,38 +167,61 @@ static void send_ble_name(void) {
     }
 }
 
+/**@brief Function to send the current ANT+ Device ID as a notification */
+static void send_current_ant_device_id(void) {
+    if (m_conn_handle == BLE_CONN_HANDLE_INVALID) return;
+
+    uint8_t data[2];
+    data[0] = m_ant_device_id & 0xFF;  // LSB
+    data[1] = (m_ant_device_id >> 8) & 0xFF;  // MSB
+
+    ble_gatts_hvx_params_t params = {0};
+    params.handle = scan_results_handles.value_handle;  // ✅ Send as a scan result
+    params.type = BLE_GATT_HVX_NOTIFICATION;
+    params.p_data = data;
+    uint16_t len = sizeof(data);
+    params.p_len = &len;
+
+    ret_code_t err_code = sd_ble_gatts_hvx(m_conn_handle, &params);
+    if (err_code == NRF_SUCCESS) {
+        NRF_LOG_INFO("📡 Sent Current ANT+ Device ID: %d", m_ant_device_id);
+    } else {
+        NRF_LOG_WARNING("⚠️ Failed to send ANT+ Device ID: 0x%08X", err_code);
+    }
+}
 
 /**@brief BLE write handler for start scan & device selection */
 static void on_write(ble_evt_t const *p_ble_evt) {
     ble_gatts_evt_write_t const *p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
     if (p_evt_write->handle == scan_control_handles.value_handle && p_evt_write->len == 1) {
-        if (p_evt_write->handle == scan_control_handles.value_handle && p_evt_write->len == 1) {
-            if (p_evt_write->data[0] == 0x01) {
-                NRF_LOG_INFO("📡 BLE Triggered ANT+ Scan");
-                ant_scan_start();
-            } else if (p_evt_write->data[0] == 0x02) {
-                NRF_LOG_INFO("📡 BLE Triggered Stop ANT+ Scan");
-                scanning_active = false;
-                devices_sent = 0;
-            } else if (p_evt_write->data[0] == 0x03) {  // ✅ New command to return BLE name
-                NRF_LOG_INFO("📡 BLE Requested Device Name");
-                send_ble_name();
-            }
-        } 
-        
-    } else if (p_evt_write->handle == select_device_handles.value_handle && p_evt_write->len == 2) {
+        if (p_evt_write->data[0] == 0x01) {
+            NRF_LOG_INFO("📡 BLE Triggered ANT+ Scan");
+            ant_scan_start();
+        } else if (p_evt_write->data[0] == 0x02) {
+            NRF_LOG_INFO("📡 BLE Triggered Stop ANT+ Scan");
+            scanning_active = false;
+            devices_sent = 0;
+        } else if (p_evt_write->data[0] == 0x03) {  // ✅ New command to return BLE name
+            NRF_LOG_INFO("📡 BLE Requested Device Name");
+            send_ble_name();
+        } else if (p_evt_write->data[0] == 0x04) {  // ✅ New command to return current ANT+ device ID
+            NRF_LOG_INFO("📡 BLE Requested Current ANT+ Device ID");
+            send_current_ant_device_id();
+        }
+    } 
+    else if (p_evt_write->handle == select_device_handles.value_handle && p_evt_write->len == 2) {
         uint16_t selected_device_id = (p_evt_write->data[0] | (p_evt_write->data[1] << 8));
         NRF_LOG_INFO("✅ Selected Device ID: %d", selected_device_id);
 
         m_ant_device_id = selected_device_id;
         update_ble_name();
-        //save_device_config();
-
-        // Notify BLE with updated name
+        
+        // Notify BLE with updated device selection
         send_scan_result(m_ant_device_id, 0);
     }
 }
+
 
 /**@brief Function for handling BLE events in the ANT+ Scan Service */
 static void ble_ant_scan_service_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context) {
