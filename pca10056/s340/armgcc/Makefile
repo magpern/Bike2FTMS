@@ -71,7 +71,9 @@ SRC_FILES += \
   $(PROJ_DIR)/src/nfc/nfc_handler.c \
   $(PROJ_DIR)/src/ble/ble_setup.c \
   $(PROJ_DIR)/src/sensors/reed_sensor.c \
+  $(PROJ_DIR)/src/sensors/battery_measurement.c \
   $(PROJ_DIR)/src/ble/ble_ant_scan_service.c \
+  $(PROJ_DIR)/src/ble/ble_battery_service.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
@@ -106,7 +108,8 @@ SRC_FILES += \
   $(SDK_ROOT)/components/nfc/platform/nfc_platform.c \
   $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_saadc.c
 
 # Include folders common to all targets
 INC_FOLDERS += \

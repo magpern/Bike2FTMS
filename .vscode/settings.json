@@ -22,6 +22,7 @@
         "nrf_sdh_ant.h": "c",
         "ble_conn_params.h": "c",
         "ble_setup.h": "c",
-        "nrf_ble_gatt.h": "c"
+        "nrf_ble_gatt.h": "c",
+        "nrfx_saadc_v2.h": "c"
     }
 }

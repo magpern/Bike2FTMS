@@ -9,10 +9,7 @@
 #include "common_definitions.h"
 #include <stdlib.h>  // ✅ Required for rand()
 
-#define ANT_SCAN_SERVICE_UUID          0x1600
-#define SCAN_CONTROL_CHAR_UUID         0x1601
-#define SCAN_RESULTS_CHAR_UUID         0x1602
-#define SELECT_DEVICE_CHAR_UUID        0x1603
+
 
 #define MAX_ANT_DEVICES 10  // Store up to 10 recent devices
 

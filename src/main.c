@@ -91,7 +91,7 @@
 #include "nrf_gpio.h"
 #include "reed_sensor.h"
 #include "ble_setup.h"
-
+#include "ble_battery_service.h"
 
 static ant_bpwr_profile_t m_ant_bpwr; /* ANT Bike/Power profile instance */
 // Forward declaration of ANT BPWR event handler
@@ -104,7 +104,6 @@ static void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context);
 
 NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NULL);
 NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
-
 APP_TIMER_DEF(ant_restart_timer);  // Timer to restart ANT+
 
 static bool system_sleep_pending = false;  // ✅ Track if sleep has already been triggered
@@ -317,7 +316,7 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 // ✅ Stop BLE Immediately
                 stop_ble_advertising();
                 ble_started = false;
-        
+
                 // ✅ Try to Close ANT+ Channel
                 NRF_LOG_INFO("🛑 Closing ANT+ Channel...");
                 uint32_t err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
@@ -480,6 +479,7 @@ int main(void)
         err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
         APP_ERROR_CHECK(err_code);
     }
+
     for (;;)
     {
         if (NRF_LOG_PROCESS() == false)

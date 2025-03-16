@@ -46,6 +46,15 @@
 #ifdef USE_APP_CONFIG
 #include "app_config.h"
 #endif
+
+#define NRFX_SAADC_ENABLED 1  // ✅ Enable SAADC
+#define NRFX_SAADC_CONFIG_CALIBRATION_ENABLED 1  // ✅ Enable calibration
+#define NRFX_SAADC_CONFIG_RESOLUTION 1  // ✅ Use 10-bit resolution
+#define NRFX_SAADC_CONFIG_OVERSAMPLE 0  // ✅ No oversampling (fastest readings)
+#define NRFX_SAADC_CONFIG_LP_MODE 0  // ✅ Disable low-power mode (faster readings)
+#define NRFX_SAADC_CONFIG_IRQ_PRIORITY 6  // ✅ Set SAADC IRQ priority
+
+
 // <h> Application 
 
 //==========================================================

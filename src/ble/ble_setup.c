@@ -13,6 +13,8 @@
 
 #include "ble_custom_config.h"
 #include "ble_ant_scan_service.h"
+#include "ble_battery_service.h"
+#include "battery_measurement.h"
 
 #include "app_error.h"
 #include "ble_ftms.h"
@@ -36,6 +38,7 @@ NRF_BLE_GATT_DEF(m_gatt);
 NRF_BLE_QWR_DEF(m_qwr);                                                              /**< Context for the Queued Write module.*/
 static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context);
 NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+APP_TIMER_DEF(battery_timer);
 
 volatile uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
@@ -195,6 +198,7 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
     APP_ERROR_HANDLER(nrf_error);
 }
 
+
 /**@brief Initialize services that will be used by the application.
  *
  * @details Initialize the Heart Rate and Device Information services.
@@ -243,6 +247,13 @@ void services_init(void)
     APP_ERROR_CHECK(err_code);
 
     ble_ant_scan_service_init();
+
+    battery_monitoring_init();  // ✅ Initialize Battery Monitoring
+    ble_battery_service_init();  // ✅ Initialize Battery BLE Service
+
+    app_timer_create(&battery_timer, APP_TIMER_MODE_REPEATED, update_battery);
+    app_timer_start(battery_timer, APP_TIMER_TICKS(120000), NULL);  // Update every 2 minutes
+
 
 }
 
@@ -428,9 +439,9 @@ void advertising_init(void)
     uint8_t              flags = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 
     ble_uuid_t adv_uuids[] = {
-        {BLE_UUID_FTMS_SERVICE, BLE_UUID_TYPE_BLE},
-        {BLE_UUID_CYCLING_POWER_SERVICE, BLE_UUID_TYPE_BLE},  // Add Cycling Power Service
-        {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}
+        {BLE_UUID_FTMS_SERVICE, BLE_UUID_TYPE_BLE},          // ✅ FTMS Service
+        {BLE_UUID_CYCLING_POWER_SERVICE, BLE_UUID_TYPE_BLE}, // ✅ Cycling Power Service
+        {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE} // ✅ Device Info Service
     };
 
     // Build and set advertising data.

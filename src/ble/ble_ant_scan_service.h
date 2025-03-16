@@ -5,6 +5,10 @@
 #include "ble.h"
 #include "ble_srv_common.h"
 #define MAX_ANT_DEVICES 10  // Reasonable limit
+#define ANT_SCAN_SERVICE_UUID          0x1600
+#define SCAN_CONTROL_CHAR_UUID         0x1601
+#define SCAN_RESULTS_CHAR_UUID         0x1602
+#define SELECT_DEVICE_CHAR_UUID        0x1603
 
 /**@brief Structure to store scanned ANT+ devices */
 typedef struct {
@@ -17,5 +21,6 @@ void ble_ant_scan_service_init(void);
 
 /**@brief Function to start ANT+ scanning (triggered via BLE) */
 void ant_scan_start(void);
+void update_battery(void *p_context);
 
 #endif // BLE_ANT_SCAN_SERVICE_H__
