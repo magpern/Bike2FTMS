@@ -110,10 +110,8 @@ static void saadc_event_handler(nrf_drv_saadc_evt_t const *p_event)
 
         // ✅ Convert ADC Reading to Millivolts & Store it
         last_battery_voltage = (ADC_REF_VOLTAGE_IN_MILLIVOLTS * adc_result * ADC_PRE_SCALING_COMPENSATION) / 1024;
-        NRF_LOG_INFO("🔍 Raw ADC Value: %d", adc_result);
-        NRF_LOG_INFO("🔋 Calculated Voltage: %d mV", last_battery_voltage);
 
-        // ✅ Convert Voltage to Battery Percentage (3000mV = 0%, 4200mV = 100%)
+        // ✅ Convert Voltage to Battery Percentage (2000mV = 0%, 3000mV = 100%)
         if (last_battery_voltage >= BATTERY_MAX_MILLIVOLTS) {
             m_battery_level_percent = 100;
         }

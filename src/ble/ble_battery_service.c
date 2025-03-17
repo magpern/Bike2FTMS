@@ -135,6 +135,8 @@ void ble_battery_update(uint8_t battery_level, uint16_t voltage_mv, uint8_t powe
 
 /**@brief Update Battery Level and Notify BLE */
 void update_battery(void *p_context) {
+    if (m_conn_handle == BLE_CONN_HANDLE_INVALID) return;
+    
     static uint8_t last_battery_percent = 0xFF; // Invalid initial value
     static uint16_t last_voltage_mv = 0xFFFF;   // Invalid initial value
 

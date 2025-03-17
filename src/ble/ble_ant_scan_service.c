@@ -65,7 +65,8 @@ NRF_SDH_BLE_OBSERVER(m_ant_scan_service_observer, APP_BLE_OBSERVER_PRIO, ble_ant
 
         // Schedule the next device transmission between 500ms and 3 seconds
         uint32_t delay_ms = 500 + (rand() % 2500);  // 500ms to 3000ms
-        app_timer_start(m_ant_scan_timer, APP_TIMER_TICKS(delay_ms), NULL);
+        ret_code_t err_code = app_timer_start(m_ant_scan_timer, APP_TIMER_TICKS(delay_ms), NULL);
+        APP_ERROR_CHECK(err_code);
     }
 #endif
 
@@ -121,24 +122,29 @@ static void ant_scan_callback(uint16_t device_id, int8_t rssi) {
 
 /**@brief Function to start ANT+ scanning */
 void ant_scan_start(void) {
-    if (scanning_active) return;
 
-    num_found_devices = 0;
-    scanning_active = true;
-
+    num_found_devices = 0;  // ✅ Reset the found devices list
+    scanning_active = true; // ✅ Indicate scan is in progress
+    devices_sent = 0;       // ✅ Reset the number of devices sent
+    
     NRF_LOG_INFO("🔍 Starting ANT+ Scan...");
 
-    // Simulated: Call `ant_scan_callback(device_id, rssi);` for real scan results
-    
     #ifdef MOCK_SCANING
-        // Start sending devices asynchronously
-        app_timer_create(&m_ant_scan_timer, APP_TIMER_MODE_SINGLE_SHOT, send_random_device);
-        send_random_device(NULL);  // Send the first device immediately
-    #else
-        // Real ANT+ scanning
-    #endif
+        static bool timer_created = false;  // ✅ Track if timer was created
 
+        // ✅ Create the timer ONLY ONCE
+        if (!timer_created) {
+            ret_code_t err_code = app_timer_create(&m_ant_scan_timer, APP_TIMER_MODE_SINGLE_SHOT, send_random_device);
+            APP_ERROR_CHECK(err_code);
+            timer_created = true;  // ✅ Mark timer as created
+        }
+        // ✅ Send the first device immediately
+        send_random_device(NULL);
+    #else
+        // ✅ Start actual ANT+ scanning here (if not mocked)
+    #endif
 }
+
 
 /**@brief Send BLE name as a notification */
 static void send_ble_name(void) {
@@ -195,19 +201,40 @@ static void on_write(ble_evt_t const *p_ble_evt) {
     ble_gatts_evt_write_t const *p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
     if (p_evt_write->handle == scan_control_handles.value_handle && p_evt_write->len == 1) {
-        if (p_evt_write->data[0] == 0x01) {
-            NRF_LOG_INFO("📡 BLE Triggered ANT+ Scan");
-            ant_scan_start();
-        } else if (p_evt_write->data[0] == 0x02) {
-            NRF_LOG_INFO("📡 BLE Triggered Stop ANT+ Scan");
-            scanning_active = false;
-            devices_sent = 0;
-        } else if (p_evt_write->data[0] == 0x03) {  // ✅ New command to return BLE name
-            NRF_LOG_INFO("📡 BLE Requested Device Name");
-            send_ble_name();
-        } else if (p_evt_write->data[0] == 0x04) {  // ✅ New command to return current ANT+ device ID
-            NRF_LOG_INFO("📡 BLE Requested Current ANT+ Device ID");
-            send_current_ant_device_id();
+        uint8_t command = p_evt_write->data[0];
+
+        switch (command) {
+            case 0x01:  // 🔍 Start or Restart Scanning
+                NRF_LOG_INFO("📡 BLE Triggered ANT+ Scan (Restarting)");
+
+                // ✅ Clear the list of found devices
+                memset(found_devices, 0, sizeof(found_devices));
+                num_found_devices = 0;
+
+                ant_scan_start();
+                break;
+
+            case 0x02:  // 🛑 Stop Scan
+            case 0x03:  // 📡 Get BLE Name
+            case 0x04:  // 🔢 Get ANT+ Device ID
+                NRF_LOG_INFO("🛑 BLE Stopping Scan (Command: 0x%02X)", command);
+                scanning_active = false;
+                num_found_devices = 0;
+                
+                #ifdef MOCK_SCANING
+                    app_timer_stop(m_ant_scan_timer);  // ✅ Stop the timer if running
+                #endif
+
+                if (command == 0x03) {
+                    send_ble_name();
+                } else if (command == 0x04) {
+                    send_current_ant_device_id();
+                }
+                break;
+
+            default:
+                NRF_LOG_WARNING("⚠️ Unknown Command: 0x%02X", command);
+                break;
         }
     } 
     else if (p_evt_write->handle == select_device_handles.value_handle && p_evt_write->len == 2) {
@@ -215,12 +242,12 @@ static void on_write(ble_evt_t const *p_ble_evt) {
         NRF_LOG_INFO("✅ Selected Device ID: %d", selected_device_id);
 
         m_ant_device_id = selected_device_id;
-        update_ble_name();
-        
-        // Notify BLE with updated device selection
         send_scan_result(m_ant_device_id, 0);
+
+        // save_device_config();  // This will reboot device
     }
 }
+
 
 
 /**@brief Function for handling BLE events in the ANT+ Scan Service */
