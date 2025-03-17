@@ -122,13 +122,29 @@ void ble_custom_service_init(void) {
     add_char_params.uuid_type = BLE_UUID_TYPE_BLE;
     add_char_params.init_len = BLE_NAME_MAX_LEN + 3;
     add_char_params.max_len = BLE_NAME_MAX_LEN + 3;
-    add_char_params.p_init_value = NULL;
     add_char_params.char_props.read = 1;
     add_char_params.char_props.write = 1;
     add_char_params.read_access = SEC_OPEN;
     add_char_params.write_access = SEC_OPEN;
     characteristic_add(m_service_handle, &add_char_params, &m_device_info_handles);
+
+    // ✅ Set initial value after adding the characteristic
+    uint8_t initial_value[BLE_NAME_MAX_LEN + 3] = {0};
+
+    initial_value[0] = (uint8_t)(m_ant_device_id & 0xFF);
+    initial_value[1] = (uint8_t)((m_ant_device_id >> 8) & 0xFF);
+    initial_value[2] = strlen(m_ble_name);
+    memcpy(&initial_value[3], m_ble_name, initial_value[2]);
+
+    ble_gatts_value_t value = {
+        .len = sizeof(initial_value),
+        .offset = 0,
+        .p_value = initial_value
+    };
+
+    sd_ble_gatts_value_set(BLE_CONN_HANDLE_INVALID, m_device_info_handles.value_handle, &value);
 }
+
 
 /**@brief Function to initialize and load stored values */
 void custom_service_load_from_flash(void) {

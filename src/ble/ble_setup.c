@@ -250,6 +250,7 @@ void services_init(void)
 
     battery_monitoring_init();  // ✅ Initialize Battery Monitoring
     ble_battery_service_init();  // ✅ Initialize Battery BLE Service
+    ble_custom_service_init();  // ✅ Initialize Custom BLE Service
 
     app_timer_create(&battery_timer, APP_TIMER_MODE_REPEATED, update_battery);
     app_timer_start(battery_timer, APP_TIMER_TICKS(120000), NULL);  // Update every 2 minutes
@@ -441,7 +442,7 @@ void advertising_init(void)
     ble_uuid_t adv_uuids[] = {
         {BLE_UUID_FTMS_SERVICE, BLE_UUID_TYPE_BLE},          // ✅ FTMS Service
         {BLE_UUID_CYCLING_POWER_SERVICE, BLE_UUID_TYPE_BLE}, // ✅ Cycling Power Service
-        {ANT_SCAN_SERVICE_UUID, BLE_UUID_TYPE_BLE} // ✅ Device Info Service
+        {ANT_SCAN_SERVICE_UUID, BLE_UUID_TYPE_BLE} 
     };
 
     // Build and set advertising data.
