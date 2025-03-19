@@ -244,7 +244,7 @@ static void on_write(ble_evt_t const *p_ble_evt) {
         m_ant_device_id = selected_device_id;
         send_scan_result(m_ant_device_id, 0);
 
-        // save_device_config();  // This will reboot device
+        save_device_config();  // This will reboot device
     }
 }
 

@@ -13,6 +13,9 @@ extern char ble_full_name[MAX_BLE_FULL_NAME_LEN];  // ✅ This is now accessible
 extern char m_ble_name[BLE_NAME_MAX_LEN + 1];
 extern uint16_t m_ant_device_id;  // ✅ This is now accessible in `main.c`
 
+/**@brief Function for initializing FDS and registering event handler. */
+void custom_service_init(void);
+
 /**@brief Function for initializing the custom BLE service. */
 void ble_custom_service_init(void);
 

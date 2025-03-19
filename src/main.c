@@ -432,14 +432,14 @@ int main(void)
     err_code = nrf_pwr_mgmt_init();
     APP_ERROR_CHECK(err_code);
 
-    custom_service_load_from_flash();  // Load stored ANT ID & BLE Name
-
     softdevice_setup();  // Initializes BLE and ANT+ stacks
+
+    // Initialize FDS first
+    custom_service_init();  // Initialize FDS
+    custom_service_load_from_flash();  // Then load stored values
 
     reed_sensor_init(NULL);
 
-    //bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, NULL);
-    
     gatt_init();
     gap_params_init();
     advertising_init();
