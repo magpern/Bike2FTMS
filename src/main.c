@@ -436,7 +436,7 @@ int main(void)
 
     // Initialize FDS first
     custom_service_init();  // Initialize FDS
-    custom_service_load_from_flash();  // Then load stored values
+    //custom_service_load_from_flash();  // Then load stored values
 
     reed_sensor_init(NULL);
 
