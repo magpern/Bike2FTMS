@@ -105,6 +105,7 @@ static void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context);
 NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NULL);
 NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
 APP_TIMER_DEF(ant_restart_timer);  // Timer to restart ANT+
+APP_TIMER_DEF(m_ble_delay_timer);
 
 static bool system_sleep_pending = false;  // ✅ Track if sleep has already been triggered
 
@@ -215,6 +216,39 @@ static void ant_restart_timer_handler(void *p_context)
     NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
 }
 
+static void ble_delay_timer_handler(void * p_context)
+{
+    // If BLE is still not connected after 60s, proceed to shutdown
+    if (m_conn_handle == BLE_CONN_HANDLE_INVALID) 
+    {
+        NRF_LOG_INFO("No BLE connection after 60s delay. Shutting down...");
+        
+        stop_ble_advertising();
+        ble_started = false;
+
+        // ✅ Try to Close ANT+ Channel
+        NRF_LOG_INFO("🛑 Closing ANT+ Channel...");
+        uint32_t err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
+        if (err_code == NRF_SUCCESS) {
+            NRF_LOG_INFO("✅ ANT+ Channel Closed Successfully");
+        } else {
+            NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed.");
+        }
+
+        // ✅ Enable reed switch before deep sleep
+        reed_sensor_enable();
+
+        // ✅ Enter Deep Sleep
+        NRF_LOG_INFO("🛑 System entering deep sleep. Waiting for flywheel movement...");
+        nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+        sd_power_system_off();
+    }
+    else
+    {
+        NRF_LOG_INFO("BLE is still connected; delaying shutdown again...");
+    }
+}
+
 /**@brief Timer initialization.
  *
  * @details Initializes the timer module. This creates and starts application timers.
@@ -240,11 +274,20 @@ static void timers_init(void)
     err_code = app_timer_create(&ant_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, ant_restart_timer_handler);
     APP_ERROR_CHECK(err_code);
 
+    err_code = app_timer_create(&m_ble_delay_timer, APP_TIMER_MODE_REPEATED, ble_delay_timer_handler);
+    APP_ERROR_CHECK(err_code);
+
 }
 
 
 
 
+static void start_device_shutdown_delay_timer(void)
+{
+    uint32_t err_code;
+    err_code = app_timer_start(m_ble_delay_timer, APP_TIMER_TICKS(20000), NULL);
+    APP_ERROR_CHECK(err_code);
+}
 
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
@@ -309,33 +352,39 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
         case EVENT_CHANNEL_CLOSED:
             if (!system_sleep_pending)
             {
-                NRF_LOG_WARNING("⚠️ ANT+ Connection Lost. Stopping BLE and entering deep sleep...");
-                ant_active = false;
                 system_sleep_pending = true;
-        
-                // ✅ Stop BLE Immediately
-                stop_ble_advertising();
-                ble_started = false;
-
-                // ✅ Try to Close ANT+ Channel
-                NRF_LOG_INFO("🛑 Closing ANT+ Channel...");
-                uint32_t err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
-                if (err_code == NRF_SUCCESS) {
-                    NRF_LOG_INFO("✅ ANT+ Channel Closed Successfully");
-                } else {
-                    NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed.");
+                // If BLE is connected, wait 60s
+                if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+                {
+                    NRF_LOG_INFO("BLE connected; delaying shutdown...");
+                    start_device_shutdown_delay_timer();
                 }
-        
-                // ✅ Enable reed switch before deep sleep
-                reed_sensor_enable();
-        
-                // ✅ Enter Deep Sleep
-                NRF_LOG_INFO("🛑 System entering deep sleep. Waiting for flywheel movement...");
-                nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
-                sd_power_system_off();
+                else
+                {
+                    NRF_LOG_INFO("No BLE connection; shutting down immediately...");
+                    // --- Same immediate-shutdown code as before ---
+                    stop_ble_advertising();
+                    ble_started = false;
+
+                    // ✅ Try to Close ANT+ Channel
+                    NRF_LOG_INFO("🛑 Closing ANT+ Channel...");
+                    uint32_t err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
+                    if (err_code == NRF_SUCCESS) {
+                        NRF_LOG_INFO("✅ ANT+ Channel Closed Successfully");
+                    } else {
+                        NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed.");
+                    }
+            
+                    // ✅ Enable reed switch before deep sleep
+                    reed_sensor_enable();
+            
+                    // ✅ Enter Deep Sleep
+                    NRF_LOG_INFO("🛑 System entering deep sleep. Waiting for flywheel movement...");
+                    nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+                    sd_power_system_off();
+                }
             }
             break;
-        
             
             
         case EVENT_RX_FAIL:
