@@ -221,7 +221,7 @@ static void ble_delay_timer_handler(void * p_context)
     // If BLE is still not connected after 60s, proceed to shutdown
     if (m_conn_handle == BLE_CONN_HANDLE_INVALID) 
     {
-        NRF_LOG_INFO("No BLE connection after 60s delay. Shutting down...");
+        NRF_LOG_INFO("No BLE connection after 20s delay. Shutting down...");
         
         stop_ble_advertising();
         ble_started = false;
@@ -261,8 +261,7 @@ static void timers_init(void)
 
     NRF_LOG_INFO("🛠️ BLE send intervall timer...");
     // ✅ Create a repeating timer that triggers every 2 seconds
-    err_code = app_timer_create(&m_ble_power_timer, APP_TIMER_MODE_REPEATED, ble_power_timer_handler);
-    APP_ERROR_CHECK(err_code);
+    ble_power_timer_create();
 
     NRF_LOG_INFO("🛠️ BLE shutdown timer...");
 
@@ -294,6 +293,7 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
     #ifdef DEBUG  // ✅ Only flash LED in debug mode
     nrf_gpio_pin_toggle(LED4_PIN);       // Toggle LED2
     #endif
+
     switch (p_ant_evt->event)
     {
         case EVENT_RX:
@@ -303,9 +303,6 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 NRF_LOG_INFO("✅ ANT+ Device Found! Starting BLE...");
                 start_ble_advertising();
                 ble_started = true;
-                // ✅ Restart BLE Power Transmission Timer
-                NRF_LOG_INFO("⏳ Starting BLE power transmission timer...");
-                app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
             }
             // Cancel shutdown if BLE is running and ANT+ is active
             ant_active = true;
@@ -417,13 +414,13 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     {
         case ANT_BPWR_PAGE_16_UPDATED:
         {
-            uint8_t event_count = p_profile->page_16.update_event_count;  // ✅ Extract counter
-            NRF_LOG_INFO("🔄 ANT+ Power Event Count: %d", event_count);
+            //uint8_t event_count = p_profile->page_16.update_event_count;  // ✅ Extract counter
+            //NRF_LOG_INFO("🔄 ANT+ Power Event Count: %d", event_count);
             // ✅ Store latest power & cadence values (DO NOT send BLE yet)
             latest_power_watts = p_profile->page_16.instantaneous_power;
             latest_cadence_rpm = p_profile->common.instantaneous_cadence;
 
-            NRF_LOG_INFO("🚴 Updated Power: %d W, Cadence: %d RPM (Stored)", latest_power_watts, latest_cadence_rpm);
+            //NRF_LOG_INFO("🚴 Updated Power: %d W, Cadence: %d RPM (Stored)", latest_power_watts, latest_cadence_rpm);
             break;
         }
 
@@ -525,8 +522,8 @@ int main(void)
     // ✅ Start BLE periodic update timer (only if ANT+ is active)
     if (m_ant_device_id != 0)
     {
-        err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(2000), NULL);
-        APP_ERROR_CHECK(err_code);
+        NRF_LOG_INFO("⏳ Starting BLE power transmission timer in main...");
+        ble_power_timer_start();
     }
 
     for (;;)

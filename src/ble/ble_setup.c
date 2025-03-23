@@ -29,8 +29,9 @@
 #include "ble_advdata.h"
 
 app_timer_id_t ble_shutdown_timer;
-bool ble_started = false;
 bool ant_active = false;
+bool ble_started = false;
+
 bool ble_shutdown_timer_running = false;
 
 
@@ -39,6 +40,7 @@ NRF_BLE_QWR_DEF(m_qwr);                                                         
 static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context);
 NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 APP_TIMER_DEF(battery_timer);
+APP_TIMER_DEF(m_ble_power_timer);  // ✅ Use the same timer ID as in `ble_setup.h`
 
 volatile uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
@@ -48,7 +50,6 @@ void ble_power_timer_handler(void * p_context);  // ✅ Function declaration
 
 uint16_t latest_power_watts = 0;  // Define and initialize
 uint8_t latest_cadence_rpm = 0;
-app_timer_id_t  m_ble_power_timer;
 
 ble_ftms_t m_ftms;  // BLE FTMS Service Instance
 ble_cps_t m_cps; // BLE 0x1818 Cycling Power Service Instance
@@ -142,7 +143,7 @@ void ble_shutdown_timer_handler(void *p_context)
     {
         // 🛑 Stop BLE Power Transmission Timer
         NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
-        app_timer_stop(m_ble_power_timer);
+        ble_power_timer_stop();
 
         NRF_LOG_WARNING("⚠️ ANT+ not found for 10 seconds. Stopping BLE...");
 
@@ -205,11 +206,11 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
  */
 void services_init(void)
 {
-    uint32_t           err_code;
-    ble_dis_init_t     dis_init;
+    uint32_t err_code;
+    ble_dis_init_t dis_init;
     nrf_ble_qwr_init_t qwr_init = {0};
 
-    // Initialize the Queued Write module.
+    // Initialize the Queued Write module
     qwr_init.error_handler = nrf_qwr_error_handler;
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
@@ -222,7 +223,7 @@ void services_init(void)
     err_code = ble_cps_init(&m_cps);
     APP_ERROR_CHECK(err_code);
 
-    // Initialize Device Information Service (DIS)
+    // Initialize Device Information Service
     memset(&dis_init, 0, sizeof(dis_init));
 
     // **Dynamic Serial Number & HW Rev**
@@ -248,14 +249,16 @@ void services_init(void)
 
     ble_ant_scan_service_init();
 
-    battery_monitoring_init();  // ✅ Initialize Battery Monitoring
-    ble_battery_service_init();  // ✅ Initialize Battery BLE Service
-    ble_custom_service_init();  // ✅ Initialize Custom BLE Service
+    // Initialize Battery monitoring ONCE
+    battery_monitoring_init();  
+
+    // Initialize Battery BLE Service (should not call battery_monitoring_init again)
+    ble_battery_service_init();  
 
     app_timer_create(&battery_timer, APP_TIMER_MODE_REPEATED, update_battery);
     app_timer_start(battery_timer, APP_TIMER_TICKS(120000), NULL);  // Update every 2 minutes
 
-
+    ble_custom_service_init();  
 }
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
@@ -480,4 +483,43 @@ void advertising_init(void)
     for (int i = 0; i < advdata.uuids_complete.uuid_cnt; i++) {
         NRF_LOG_INFO("UUID: 0x%04X", advdata.uuids_complete.p_uuids[i].uuid);
     }
+}
+
+// 3) Create function
+void ble_power_timer_create(void)
+{
+    ret_code_t err_code;
+
+    err_code = app_timer_create(&m_ble_power_timer,
+                                APP_TIMER_MODE_REPEATED,
+                                ble_power_timer_handler);
+    APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_INFO("✅ BLE power timer created");
+}
+
+// 4) Start function
+void ble_power_timer_start(void)
+{
+    ret_code_t err_code;
+
+    // Example: Fire every 2 seconds
+    err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(1000), NULL);
+    APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_INFO("✅ BLE power timer started");
+}
+
+// 5) Stop function
+void ble_power_timer_stop(void)
+{
+    ret_code_t err_code = app_timer_stop(m_ble_power_timer);
+
+    // If it’s already stopped, it returns NRF_SUCCESS or NRF_ERROR_INVALID_STATE
+    if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_INVALID_STATE))
+    {
+        APP_ERROR_CHECK(err_code);
+    }
+
+    NRF_LOG_INFO("🛑 BLE power timer stopped");
 }
