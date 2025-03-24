@@ -4,16 +4,21 @@
 #include "app_error.h"
 #include "ant_interface.h"
 #include "ant_bpwr.h"
+#include "ant_parameters.h"  // ✅ Include the header defining ANT_LIB_CONFIG_MESG_OUT_FIELDS_ENABLE
+#include "ant_interface.h"  // ✅ Include the header defining ANT_LIB_CONFIG_MESG_OUT_FIELDS_ENABLE
 #include "ble_custom_config.h"
 #include "nrf_sdh_ble.h"
 #include "common_definitions.h"
 #include <stdlib.h>  // ✅ Required for rand()
 
-
+#define ANT_LIB_CONFIG_MESG_OUT_FIELDS_ENABLE  0x01
+#define ANT_LIB_CONFIG_RSSI_MASK               0xC0
+#define ANT_LIB_CONFIG_RX_TIMESTAMP            0x20
 
 #define MAX_ANT_DEVICES 10  // Store up to 10 recent devices
 
 #define MOCK_SCANING
+
 
 static uint16_t m_service_handle;
 static ble_gatts_char_handles_t scan_control_handles;
@@ -27,7 +32,7 @@ static bool scanning_active = false;
 // Forward declarations
 static void send_scan_result(uint16_t device_id, int8_t rssi);
 static bool is_device_in_list(uint16_t device_id);
-static void ant_scan_callback(uint16_t device_id, int8_t rssi);
+//static void ant_scan_callback(uint16_t device_id, int8_t rssi);
 
 static void ble_ant_scan_service_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context);
 NRF_SDH_BLE_OBSERVER(m_ant_scan_service_observer, APP_BLE_OBSERVER_PRIO, ble_ant_scan_service_on_ble_evt, NULL);
@@ -107,43 +112,123 @@ static void send_scan_result(uint16_t device_id, int8_t rssi) {
 
 
 /**@brief Callback function for when an ANT+ device is detected */
-static void ant_scan_callback(uint16_t device_id, int8_t rssi) {
-    if (num_found_devices >= MAX_ANT_DEVICES) return;  // Prevent overflow
-
-    if (!is_device_in_list(device_id)) {
-        NRF_LOG_INFO("📡 Found ANT+ Device ID: %d, RSSI: %d", device_id, rssi);
+void ant_scan_callback(uint16_t device_id, int8_t rssi)
+{
+    // If we already discovered it, ignore
+    for (uint8_t i = 0; i < num_found_devices; i++)
+    {
+        if (found_devices[i].device_id == device_id)
+        {
+            return; // Already in the list
+        }
+    }
+    // If there's space, add a new entry
+    if (num_found_devices < MAX_ANT_DEVICES)
+    {
         found_devices[num_found_devices].device_id = device_id;
-        found_devices[num_found_devices].rssi = rssi;
+        found_devices[num_found_devices].rssi      = rssi;
         num_found_devices++;
+        NRF_LOG_INFO("Found new ANT+ device: ID=%u, RSSI=%d dBm", device_id, rssi);
 
-        send_scan_result(device_id, rssi); // Send immediately
+        // Now optionally send a BLE notification to your Scan Results characteristic
+        send_scan_result(device_id, rssi);
     }
 }
 
 /**@brief Function to start ANT+ scanning */
-void ant_scan_start(void) {
+void ant_scan_start(void)
+{
+    if (scanning_active)
+    {
+        NRF_LOG_INFO("ANT+ scanning already active.");
+        return;
+    }
 
-    num_found_devices = 0;  // ✅ Reset the found devices list
-    scanning_active = true; // ✅ Indicate scan is in progress
-    devices_sent = 0;       // ✅ Reset the number of devices sent
-    
-    NRF_LOG_INFO("🔍 Starting ANT+ Scan...");
+    // Clear found device list
+    num_found_devices = 0;
+    memset(found_devices, 0, sizeof(found_devices));
 
-    #ifdef MOCK_SCANING
-        static bool timer_created = false;  // ✅ Track if timer was created
+    // First, close the bike power channel (channel 0)
+    NRF_LOG_INFO("Closing ANT+ bike power channel for scanning...");
+    uint32_t err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_WARNING("Could not close bike power channel: 0x%08X", err_code);
+    }
 
-        // ✅ Create the timer ONLY ONCE
-        if (!timer_created) {
-            ret_code_t err_code = app_timer_create(&m_ant_scan_timer, APP_TIMER_MODE_SINGLE_SHOT, send_random_device);
-            APP_ERROR_CHECK(err_code);
-            timer_created = true;  // ✅ Mark timer as created
-        }
-        // ✅ Send the first device immediately
-        send_random_device(NULL);
-    #else
-        // ✅ Start actual ANT+ scanning here (if not mocked)
-    #endif
+    // Add a longer delay to ensure channel is fully closed
+    nrf_delay_ms(500);  // Increased from 100ms to 500ms
+
+    // Try to unassign both channels to ensure clean state
+    err_code = sd_ant_channel_unassign(ANT_BPWR_ANT_CHANNEL);
+    if (err_code != NRF_SUCCESS && err_code != 0xE001) {
+        NRF_LOG_WARNING("Could not unassign bike power channel: 0x%08X", err_code);
+    }
+
+    err_code = sd_ant_channel_unassign(SCANNING_CHANNEL_NUMBER);
+    if (err_code != NRF_SUCCESS && err_code != 0xE001) {
+        NRF_LOG_WARNING("Could not unassign scanning channel: 0x%08X", err_code);
+    }
+
+    // Add another delay after unassigning
+    nrf_delay_ms(100);
+
+    // Enable extended message fields
+    err_code = sd_ant_lib_config_set(
+        ANT_LIB_CONFIG_MESG_OUT_FIELDS_ENABLE     // Extended fields
+        | ANT_LIB_CONFIG_RSSI_MASK);              // Include RSSI info
+    APP_ERROR_CHECK(err_code);
+
+    // Configure channel for bike power search with minimal configuration
+    ant_channel_config_t channel_config =
+    {
+        .channel_number    = SCANNING_CHANNEL_NUMBER,  // Use channel 1 for scanning
+        .channel_type      = CHANNEL_TYPE_SLAVE,
+        .ext_assign       = 0x00,
+        .rf_freq          = BPWR_ANTPLUS_RF_FREQ,
+        .transmission_type = 0,                     // Wildcard
+        .device_type      = 0x0B,                  // Power meter device type
+        .device_number    = 0,                     // Wildcard
+        .channel_period   = 8192,                  // Standard search period
+        .network_number   = ANTPLUS_NETWORK_NUMBER
+    };
+
+    // Print configuration for debugging
+    NRF_LOG_INFO("🔍 ANT+ Scan Config:");
+    NRF_LOG_INFO("   Channel: %d", channel_config.channel_number);
+    NRF_LOG_INFO("   Type: %d", channel_config.channel_type);
+    NRF_LOG_INFO("   RF Freq: %d", channel_config.rf_freq);
+    NRF_LOG_INFO("   Device Type: %d", channel_config.device_type);
+    NRF_LOG_INFO("   Period: %d", channel_config.channel_period);
+
+    // Set network key for the scanning channel
+    err_code = sd_ant_network_address_set(ANTPLUS_NETWORK_NUMBER, ANT_PLUS_NETWORK_KEY);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("Failed to set network key: 0x%08X", err_code);
+        return;
+    }
+
+    // Initialize channel
+    err_code = ant_channel_init(&channel_config);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("Failed to initialize scanning channel: 0x%08X", err_code);
+        return;
+    }
+
+    // Set search timeout to disable high priority search
+    err_code = sd_ant_channel_search_timeout_set(SCANNING_CHANNEL_NUMBER, 0);
+    APP_ERROR_CHECK(err_code);
+
+    // Open the channel in search mode
+    err_code = sd_ant_channel_open(SCANNING_CHANNEL_NUMBER);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("Failed to open scanning channel: 0x%08X", err_code);
+        return;
+    }
+
+    scanning_active = true;
+    NRF_LOG_INFO("ANT+ scanning started on channel %u", SCANNING_CHANNEL_NUMBER);
 }
+
 
 
 /**@brief Send BLE name as a notification */

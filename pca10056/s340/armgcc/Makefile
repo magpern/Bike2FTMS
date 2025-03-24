@@ -74,6 +74,7 @@ SRC_FILES += \
   $(PROJ_DIR)/src/sensors/battery_measurement.c \
   $(PROJ_DIR)/src/ble/ble_ant_scan_service.c \
   $(PROJ_DIR)/src/ble/ble_battery_service.c \
+  $(PROJ_DIR)/src/ant/ant_scanner.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \

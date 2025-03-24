@@ -10,6 +10,9 @@
 #define SCAN_RESULTS_CHAR_UUID         0x1602
 #define SELECT_DEVICE_CHAR_UUID        0x1603
 
+// Some IDs for clarity (adapt as needed):
+#define SCANNING_CHANNEL_NUMBER       1    // Use channel 1 for scanning
+
 /**@brief Structure to store scanned ANT+ devices */
 typedef struct {
     uint16_t device_id;
@@ -18,6 +21,7 @@ typedef struct {
 
 /**@brief Function to initialize the ANT+ Scan Service */
 void ble_ant_scan_service_init(void);
+void ant_scan_callback(uint16_t device_id, int8_t rssi);
 
 /**@brief Function to start ANT+ scanning (triggered via BLE) */
 void ant_scan_start(void);

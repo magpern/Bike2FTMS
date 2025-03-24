@@ -25,6 +25,10 @@
         "nrf_ble_gatt.h": "c",
         "nrfx_saadc_v2.h": "c",
         "app_timer.h": "c",
-        "ant_search_config.h": "c"
+        "ant_search_config.h": "c",
+        "ant_parameters.h": "c",
+        "ant_interface.h": "c",
+        "ant_scanner.h": "c",
+        "ant_channel_config.h": "c"
     }
 }
