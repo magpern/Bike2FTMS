@@ -23,6 +23,8 @@
         "ble_conn_params.h": "c",
         "ble_setup.h": "c",
         "nrf_ble_gatt.h": "c",
-        "nrfx_saadc_v2.h": "c"
+        "nrfx_saadc_v2.h": "c",
+        "app_timer.h": "c",
+        "ant_search_config.h": "c"
     }
 }
