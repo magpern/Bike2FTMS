@@ -36,7 +36,7 @@
 
 #define DEAD_BEEF 0xDEADBEEF  // Error code for stack dump debugging
 
-#define ANT_BPWR_ANT_CHANNEL 0   // Default ANT+ Channel
+#define ANT_BPWR_ANT_CHANNEL 1   // Channel used for ANT+ communication MUST not be 0
 #define ANT_BPWR_DEVICE_NUMBER 18465  // Default ANT+ device number
 #define ANT_BPWR_TRANS_TYPE 5  // Transmission Type
 #define ANTPLUS_NETWORK_NUMBER 0  // Network number

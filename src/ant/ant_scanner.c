@@ -141,12 +141,12 @@ uint32_t ant_scanner_init(ant_device_callback_t callback)
     }
 
     // Close all channels first (ANT+ requirement for scanning)
-    for (uint8_t channel = 0; channel < 8; channel++)  // ANT+ supports up to 8 channels
+    for (uint8_t channel = 0; channel < 15; channel++)  // ANT+ supports up to 15 channels
     {
         err_code = sd_ant_channel_close(channel);
         if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_PARAM)
         {
-            NRF_LOG_WARNING("Failed to close channel %d: 0x%08X", channel, err_code);
+            NRF_LOG_WARNING("Failed to close channel (Probably expected) %d: 0x%08X", channel, err_code);
         }
     }
 
@@ -209,7 +209,7 @@ uint32_t ant_scanner_start(void)
     memset(m_found_devices, 0, sizeof(m_found_devices));
 
     // Start background scanning mode
-    err_code = sd_ant_rx_scan_mode_start(SCAN_CHANNEL_NUMBER);
+    err_code = sd_ant_rx_scan_mode_start(0); //this is not the channel, it is sync message true/false   
     if (err_code != NRF_SUCCESS)
     {
         return err_code;

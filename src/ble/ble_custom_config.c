@@ -119,12 +119,6 @@ void load_device_config(void) {
         if (ret == NRF_SUCCESS) {
             uint8_t *data = (uint8_t *)record.p_data;
 
-            // **Log stored data**
-            NRF_LOG_INFO("🔍 Stored Data (Raw Bytes):");
-            for (int i = 0; i < record.p_header->length_words * 4; i++) {
-                NRF_LOG_INFO("Byte %d: 0x%02X", i, data[i]);
-            }
-
             // **Verify byte order before parsing**
             m_ant_device_id = (uint16_t)(data[0] | (data[1] << 8));
             NRF_LOG_INFO("✅ Parsed Device ID: %d (0x%04X)", m_ant_device_id, m_ant_device_id);

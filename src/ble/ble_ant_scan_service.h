@@ -21,10 +21,8 @@ typedef struct {
 
 /**@brief Function to initialize the ANT+ Scan Service */
 void ble_ant_scan_service_init(void);
-void ant_scan_callback(uint16_t device_id, int8_t rssi);
 
 /**@brief Function to start ANT+ scanning (triggered via BLE) */
-void ant_scan_start(void);
 void update_battery(void *p_context);
 
 #endif // BLE_ANT_SCAN_SERVICE_H__

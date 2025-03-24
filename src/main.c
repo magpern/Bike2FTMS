@@ -92,6 +92,11 @@
 #include "reed_sensor.h"
 #include "ble_setup.h"
 #include "ble_battery_service.h"
+#include "ble_ant_scan_service.h"
+#include "ant_interface.h"
+#include "ant_parameters.h"
+
+#include "ant_scanner.h"
 
 static ant_bpwr_profile_t m_ant_bpwr; /* ANT Bike/Power profile instance */
 // Forward declaration of ANT BPWR event handler
@@ -100,10 +105,11 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
 // Forward declarations
 
 static void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context);
+static void ant_bpwr_disp_evt_handler_filtered(ant_evt_t * p_ant_evt, void * p_context);
 
 
 NRF_SDH_ANT_OBSERVER(m_ant_observer, APP_ANT_OBSERVER_PRIO, ant_evt_handler, NULL);
-NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler, &m_ant_bpwr);
+NRF_SDH_ANT_OBSERVER(m_ant_bpwr_observer, ANT_BPWR_ANT_OBSERVER_PRIO, ant_bpwr_disp_evt_handler_filtered, &m_ant_bpwr);
 APP_TIMER_DEF(ant_restart_timer);  // Timer to restart ANT+
 APP_TIMER_DEF(m_ble_delay_timer);
 
@@ -117,7 +123,21 @@ static const ant_bpwr_disp_config_t m_ant_bpwr_profile_bpwr_disp_config =
     .evt_handler = ant_bpwr_evt_handler,
 };
 
-
+// Custom filtering wrapper
+static void ant_bpwr_disp_evt_handler_filtered(ant_evt_t * p_ant_evt, void * p_context)
+{
+    if (p_ant_evt->channel == ANT_BPWR_ANT_CHANNEL)
+    {
+        // Only forward events from ANT_BPWR_ANT_CHANNEL to Nordic's handler
+        ant_bpwr_disp_evt_handler(p_ant_evt, p_context);
+    }
+    else
+    {
+        // Optional debug log (helpful for troubleshooting)
+        NRF_LOG_DEBUG("Ignored ANT event on channel %u in BPWR handler (expected %u)",
+                     p_ant_evt->channel, ANT_BPWR_ANT_CHANNEL);
+    }
+}
 /**@brief Callback function for asserts in the SoftDevice.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
@@ -290,13 +310,22 @@ static void start_device_shutdown_delay_timer(void)
 
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
-    #ifdef DEBUG  // ✅ Only flash LED in debug mode
-    nrf_gpio_pin_toggle(LED4_PIN);       // Toggle LED2
-    #endif
+#ifdef DEBUG
+    nrf_gpio_pin_toggle(LED4_PIN);
+#endif
+
+    // ✅ Ignore events from any channel except the Bike Power Channel
+    if (p_ant_evt->channel != ANT_BPWR_ANT_CHANNEL)
+    {
+        NRF_LOG_DEBUG("Ignoring ANT event from channel %u (expected channel %u)",
+                     p_ant_evt->channel, ANT_BPWR_ANT_CHANNEL);
+        return;
+    }
 
     switch (p_ant_evt->event)
     {
         case EVENT_RX:
+            ANT_MESSAGE * p_ant_message = &p_ant_evt->message;
 
             if (!ble_started)
             {
@@ -304,38 +333,40 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 start_ble_advertising();
                 ble_started = true;
             }
-            // Cancel shutdown if BLE is running and ANT+ is active
+            // Mark ANT active, stop any BLE shutdown timer if running
             ant_active = true;
             app_timer_stop(ble_shutdown_timer);
 
-            // Process the received data
-            uint8_t * p_page_buffer = p_ant_evt->message.ANT_MESSAGE_aucPayload;
-            uint8_t page_number = p_page_buffer[0];  // Page number is always in Byte 0
-    
-            if (page_number == 0x52)  // 🔋 Battery Status (Common Page 82)
+            // Now parse the standard payload:
+            // The standard data pages live in p_ant_message->ANT_MESSAGE_aucPayload.
+            uint8_t * p_page_buffer = p_ant_message->ANT_MESSAGE_aucPayload;
+            uint8_t page_number = p_page_buffer[0];
+
+            // Example: if page_number == 0x52 -> Battery Status (Common Page 82)
+            if (page_number == 0x52)
             {
                 NRF_LOG_INFO("📡 ANT+ Message Received - Page: %d", page_number);
 
-                uint8_t battery_id = (p_page_buffer[1] & 0xF0) >> 4;  // Extract battery ID (upper 4 bits)
-                uint8_t num_batteries = p_page_buffer[1] & 0x0F;  // Extract number of batteries (lower 4 bits)
-    
-                uint32_t operating_time = (p_page_buffer[2]) |
-                                          (p_page_buffer[3] << 8) |
-                                          (p_page_buffer[4] << 16);
-    
-                uint8_t battery_voltage_frac = p_page_buffer[5];  // Fractional battery voltage
-                float battery_voltage = battery_voltage_frac / 256.0;  // Convert to volts
-    
-                uint8_t status_flags = p_page_buffer[6];  // Battery status information
-                
+                uint8_t battery_id = (p_page_buffer[1] & 0xF0) >> 4;
+                uint8_t num_batteries = (p_page_buffer[1] & 0x0F);
+
+                uint32_t operating_time = (p_page_buffer[2])
+                                        | (p_page_buffer[3] << 8)
+                                        | (p_page_buffer[4] << 16);
+
+                // Fractional battery voltage
+                uint8_t battery_voltage_frac = p_page_buffer[5];
+                float battery_voltage = battery_voltage_frac / 256.0f;
+
+                uint8_t status_flags = p_page_buffer[6];
+
                 NRF_LOG_INFO("🔋 Battery Status:");
                 NRF_LOG_INFO("   - Battery ID: %d", battery_id);
                 NRF_LOG_INFO("   - Number of Batteries: %d", num_batteries);
-                NRF_LOG_INFO("   - Operating Time: %d seconds", operating_time * 2);  // Convert to actual seconds
-                NRF_LOG_INFO("   - Battery Voltage: %.2fV", battery_voltage);
+                NRF_LOG_INFO("   - Operating Time: %d seconds", operating_time * 2);
+                NRF_LOG_INFO("   - Battery Voltage: %.2f V", battery_voltage);
                 NRF_LOG_INFO("   - Status Flags: 0x%02X", status_flags);
-                
-                // Decode battery status flags
+
                 if (status_flags & 0x01) {
                     NRF_LOG_INFO("   - ⚠️ Battery Low");
                 }
@@ -345,12 +376,13 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
             }
             break;
 
+        // A couple of typical ANT events:
         case EVENT_RX_SEARCH_TIMEOUT:
         case EVENT_CHANNEL_CLOSED:
             if (!system_sleep_pending)
             {
                 system_sleep_pending = true;
-                // If BLE is connected, wait 60s
+                // If BLE is connected, wait some time, else shut down now
                 if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
                 {
                     NRF_LOG_INFO("BLE connected; delaying shutdown...");
@@ -359,42 +391,42 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 else
                 {
                     NRF_LOG_INFO("No BLE connection; shutting down immediately...");
-                    // --- Same immediate-shutdown code as before ---
                     stop_ble_advertising();
                     ble_started = false;
 
-                    // ✅ Try to Close ANT+ Channel
                     NRF_LOG_INFO("🛑 Closing ANT+ Channel...");
                     uint32_t err_code = sd_ant_channel_close(ANT_BPWR_ANT_CHANNEL);
                     if (err_code == NRF_SUCCESS) {
                         NRF_LOG_INFO("✅ ANT+ Channel Closed Successfully");
                     } else {
-                        NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed.");
+                        NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed or error.");
                     }
-            
-                    // ✅ Enable reed switch before deep sleep
+
+                    // Enable your reed sensor or other hardware for wake
                     reed_sensor_enable();
-            
-                    // ✅ Enter Deep Sleep
-                    NRF_LOG_INFO("🛑 System entering deep sleep. Waiting for flywheel movement...");
+
+                    // Enter Deep Sleep
+                    NRF_LOG_INFO("🛑 System entering deep sleep...");
                     nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
                     sd_power_system_off();
                 }
             }
             break;
-            
-            
+
         case EVENT_RX_FAIL:
-            NRF_LOG_WARNING("⚠️ ANT+ RX Fail: %d", p_ant_evt->message.ANT_MESSAGE_ucMesgID);
+            NRF_LOG_WARNING("⚠️ ANT+ RX Fail: %d", p_ant_evt->event);
             break;
+
         case EVENT_RX_DATA_OVERFLOW:
-            NRF_LOG_WARNING("⚠️ ANT+ RX Data Overflow: %d", p_ant_evt->message.ANT_MESSAGE_ucMesgID);
+            NRF_LOG_WARNING("⚠️ ANT+ RX Data Overflow: %d", p_ant_evt->event);
             break;
+
         default:
             NRF_LOG_INFO("⚠️ Unhandled ANT+ event: %d", p_ant_evt->event);
             break;
     }
 }
+
 
 
 /** @brief Handle received ANT+ BPWR data.
@@ -455,8 +487,6 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
             break;
     }
 }
-
-
 
 /**@brief Application main function.
  */
