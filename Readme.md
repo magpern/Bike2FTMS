@@ -1,4 +1,13 @@
 # ANT+ to BLE FTMS Bridge
+[![Build](https://github.com/magpern/Bike2FTMS/actions/workflows/build.yml/badge.svg)](https://github.com/magpern/Bike2FTMS/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/magpern/Bike2FTMS?label=Release)](https://github.com/magpern/Bike2FTMS/releases)
+[![License](https://img.shields.io/github/license/magpern/Bike2FTMS)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-nRF52840-blue)
+![SDK](https://img.shields.io/badge/SDK-nRF5%20SDK%2017.1.0-blue)
+![SoftDevice](https://img.shields.io/badge/SoftDevice-S340%20v7.2.0-orange)
+[![Lines of Code](https://tokei.rs/b1/github/magpern/Bike2FTMS?category=code)](https://github.com/magpern/Bike2FTMS)
+![Firmware Size](https://img.shields.io/badge/firmware-compiled-lightgrey)
+![Status](https://img.shields.io/badge/project-🔥%20Ready%20to%20Test-success)
 
 ## **Project Overview**
 This project implements an **ANT+ to BLE bridge** using an **nRF52840** microcontroller. The bridge listens for **ANT+ spin bike data** (device type 11), processes it, and transmits it using the **BLE FTMS (Fitness Machine Service)** protocol. This allows BLE-enabled fitness applications to receive real-time cycling data.
@@ -20,6 +29,7 @@ The firmware is optimized for **low-power operation**, implementing sleep modes 
   - Settings persist across reboots using **UICR flash storage**.
 - **NFC Support for Quick Setup**
   - Scans NFC tags to configure **ANT+ Device ID and BLE name**.
+    (Implemented, but not active)
 - **Power Management Features**
   - BLE advertising starts **only when ANT+ data is detected**.
   - Automatically **enters deep sleep** when no ANT+ devices are broadcasting.
@@ -40,6 +50,7 @@ The firmware is optimized for **low-power operation**, implementing sleep modes 
 ---
 
 ## **Setup & Usage**
+[![Download Firmware](https://img.shields.io/badge/download-satsbike_dfu.zip-blue?logo=github)](https://github.com/magpern/Bike2FTMS/releases/latest/download/satsbike_dfu.zip)
 ### **1️⃣ Required Development Tools**
 - **nRF5 SDK v17.1.0**
 - **SoftDevice S340 v7.2.0**

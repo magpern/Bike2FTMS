@@ -78,6 +78,11 @@ jobs:
             satsbike_dfu.zip
           retention-days: 7
       
+      - name: Show firmware size
+        run: |
+          echo "🚀 Firmware size:"
+          stat --printf="%n: %s bytes\n" satsbike_dfu.zip || echo "Not found"
+
       - name: Upload to release
         if: github.event_name == 'release' && github.event.action == 'published'
         uses: actions/upload-release-asset@v1
