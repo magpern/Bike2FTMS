@@ -53,7 +53,7 @@ jobs:
       - name: Inject ANT license key
         run: |
             sed -i 's|#define ANT_LICENSE_KEY .*|#define ANT_LICENSE_KEY "'"${{ secrets.ANT_LICENSE_KEY }}"'"|' \
-            /opt/nRF5_SDK_17.1.0_ddde560/components/softdevice/s340/headers/nrf52/nrf_sdm.h
+            /opt/nRF5_SDK_17.1.0_ddde560/components/softdevice/s340/headers/nrf_sdm.h
         
       - name: Build project
         run: |
