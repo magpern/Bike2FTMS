@@ -1,7 +1,7 @@
 # ANT+ to BLE FTMS Bridge
 [![Build](https://github.com/magpern/Bike2FTMS/actions/workflows/build.yml/badge.svg)](https://github.com/magpern/Bike2FTMS/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/magpern/Bike2FTMS?label=Release)](https://github.com/magpern/Bike2FTMS/releases)
-[![License](https://img.shields.io/github/license/magpern/Bike2FTMS)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT--NC-blue)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-nRF52840-blue)
 ![SDK](https://img.shields.io/badge/SDK-nRF5%20SDK%2017.1.0-blue)
 ![SoftDevice](https://img.shields.io/badge/SoftDevice-S340%20v7.2.0-orange)
