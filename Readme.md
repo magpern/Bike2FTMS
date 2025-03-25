@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT--NC-blue)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-nRF52840-blue)
 ![SDK](https://img.shields.io/badge/SDK-nRF5%20SDK%2017.1.0-blue)
-![SoftDevice](https://img.shields.io/badge/SoftDevice-S340%20v7.2.0-orange)
+![SoftDevice](https://img.shields.io/badge/SoftDevice-S340%20v7.0.1-orange)
 [![Lines of Code](https://tokei.rs/b1/github/magpern/Bike2FTMS?category=code)](https://github.com/magpern/Bike2FTMS)
 ![Firmware Size](https://img.shields.io/badge/firmware-compiled-lightgrey)
 ![Status](https://img.shields.io/badge/project-🔥%20Ready%20to%20Test-success)
