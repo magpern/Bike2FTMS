@@ -325,6 +325,7 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
     switch (p_ant_evt->event)
     {
         case EVENT_RX:
+        {
             ANT_MESSAGE * p_ant_message = &p_ant_evt->message;
 
             if (!ble_started)
@@ -375,7 +376,7 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 }
             }
             break;
-
+        }
         // A couple of typical ANT events:
         case EVENT_RX_SEARCH_TIMEOUT:
         case EVENT_CHANNEL_CLOSED:
