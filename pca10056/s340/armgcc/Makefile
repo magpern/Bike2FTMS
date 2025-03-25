@@ -2,8 +2,8 @@ PROJECT_NAME     := ble_ant_app_FTMS_pca10056_s340
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := _build
 
-SDK_ROOT := D:/nRF5_SDK
-PROJ_DIR := D:/nRF5_SDK/projects/SatsBike
+SDK_ROOT := $(NRF5_SDK_ROOT)
+PROJ_DIR := $(abspath ../../../)
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := SatsBike_gcc_nrf52.ld
