@@ -1,0 +1,79 @@
+name: Build and Create DFU
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install nrfutil
+    
+    - name: Download nRF5 SDK
+      run: |
+        wget https://www.nordicsemi.com/-/media/Software-and-other-downloads/SDKs/nRF5/Binaries/nRF5_SDK_17.1.0_ddde560.zip
+        unzip nRF5_SDK_17.1.0_ddde560.zip -d /opt/
+        rm nRF5_SDK_17.1.0_ddde560.zip
+    
+    - name: Set up environment variables
+      run: |
+        echo "NRF5_SDK_ROOT=/opt/nRF5_SDK_17.1.0_ddde560" >> $GITHUB_ENV
+        echo "GNU_INSTALL_ROOT=/opt/gcc-arm-none-eabi-10.3-2021.10" >> $GITHUB_ENV
+        echo "GNU_VERSION=10.3.1" >> $GITHUB_ENV
+        echo "GNU_PREFIX=arm-none-eabi" >> $GITHUB_ENV
+    
+    - name: Download ARM GCC
+      run: |
+        wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2
+        tar -xf gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2 -C /opt/
+        rm gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2
+    
+    - name: Build project
+      run: |
+        cd pca10056/s340/armgcc
+        make -j4 DEBUG=0 OPT=-O3
+    
+    - name: Create DFU package
+      run: |
+        nrfutil pkg generate --hw-version 52 --sd-req 0x00 \
+          --application pca10056/s340/armgcc/_build/nrf52840_xxaa.hex \
+          --application-version 1 \
+          --softdevice pca10056/s340/hex/s340_nrf52_7.0.1_softdevice.hex \
+          satsbike_dfu.zip
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: satsbike-firmware
+        path: |
+          pca10056/s340/armgcc/_build/nrf52840_xxaa.hex
+          pca10056/s340/armgcc/_build/nrf52840_xxaa.bin
+          satsbike_dfu.zip
+        retention-days: 7
+    
+    - name: Upload to release
+      if: github.event_name == 'release' && github.event.action == 'published'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./satsbike_dfu.zip
+        asset_name: satsbike_dfu.zip
+        asset_content_type: application/zip 
