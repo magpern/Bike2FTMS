@@ -8,6 +8,8 @@ build_*/
 *.o
 *.out
 *.hex
+# Except this specific one
+!ANT_s340_nrf52_7.0.1.hex
 *.bin
 *.elf
 *.map
