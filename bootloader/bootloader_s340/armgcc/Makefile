@@ -1,11 +1,11 @@
-PROJECT_NAME     := secure_bootloader_s340_pca10056
-TARGETS          := nrf52840_xxaa_s340
+PROJECT_NAME     := satsbike_bootloader_s340
+TARGETS          := satsbike_bootloader_s340
 OUTPUT_DIRECTORY := _build
 
 SDK_ROOT := $(NRF5_SDK_ROOT)
 PROJ_DIR := $(abspath ../../)
 
-$(OUTPUT_DIRECTORY)/nrf52840_xxaa_s340.out: \
+$(OUTPUT_DIRECTORY)/satsbike_bootloader_s340.out: \
   LINKER_SCRIPT  := secure_bootloader_gcc_nrf52.ld
 
 # Source files common to all targets
@@ -199,8 +199,8 @@ LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs
 
-nrf52840_xxaa_s340: CFLAGS += -D__HEAP_SIZE=0
-nrf52840_xxaa_s340: ASMFLAGS += -D__HEAP_SIZE=0
+satsbike_bootloader_s340: CFLAGS += -D__HEAP_SIZE=0
+satsbike_bootloader_s340: ASMFLAGS += -D__HEAP_SIZE=0
 
 # Add standard libraries at the very end of the linker input, after all objects
 # that may need symbols provided by these libraries.
@@ -210,12 +210,12 @@ LIB_FILES += -lc -lnosys -lm
 .PHONY: default help
 
 # Default target - first one defined
-default: nrf52840_xxaa_s340
+default: satsbike_bootloader_s340
 
 # Print all targets that can be built
 help:
 	@echo following targets are available:
-	@echo		nrf52840_xxaa_s340
+	@echo		satsbike_bootloader_s340
 	@echo		flash_softdevice
 	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
@@ -231,8 +231,8 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 # Flash the program
 flash: default
-	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52840_xxaa_s340.hex
-	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa_s340.hex --sectorerase
+	@echo Flashing: $(OUTPUT_DIRECTORY)/satsbike_bootloader_s340.hex
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/satsbike_bootloader_s340.hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
 # Flash softdevice

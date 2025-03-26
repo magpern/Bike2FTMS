@@ -290,6 +290,38 @@ flash_softdevice:
 	nrfjprog -f nrf52 --program $(SDK_ROOT)/components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
+SOFTDEVICE_HEX := $(SDK_ROOT)/components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex
+BOOTLOADER_HEX := ../../../bootloader/bootloader_s340/armgcc/_build/satsbike_bootloader_s340.hex
+APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
+MERGED_HEX     := merged_firmware.hex
+DFU_SETTINGS   := dfu_settings.hex
+
+merge_all:
+	@echo Generating DFU settings...
+	nrfutil settings generate --family NRF52840 \
+	  --application $(APP_HEX) \
+	  --application-version 1 \
+	  --bootloader-version 1 \
+	  --bl-settings-version 2 \
+    --app-boot-validation VALIDATE_GENERATED_CRC \
+	  $(DFU_SETTINGS)
+
+	@echo Merging: app + softdevice + bootloader + dfu_settings
+	mergehex --merge \
+	  $(SOFTDEVICE_HEX) \
+	  $(BOOTLOADER_HEX) \
+	  $(APP_HEX) \
+	  $(DFU_SETTINGS) \
+	  --output $(MERGED_HEX)
+
+	@echo Done! $(MERGED_HEX)
+
+flash_all: merge_all
+	@echo Flashing merged firmware...
+	nrfjprog -f nrf52 --program $(MERGED_HEX) --sectorerase
+	nrfjprog -f nrf52 --reset
+	@echo Flash complete!
+  
 erase:
 	nrfjprog -f nrf52 --eraseall
 
