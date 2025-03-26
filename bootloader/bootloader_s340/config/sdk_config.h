@@ -88,7 +88,7 @@
 // <i> The bootloader will do its own postvalidation.
 
 #ifndef NRF_BL_DFU_ALLOW_UPDATE_FROM_APP
-#define NRF_BL_DFU_ALLOW_UPDATE_FROM_APP 0
+#define NRF_BL_DFU_ALLOW_UPDATE_FROM_APP 1
 #endif
 
 // </h> 
@@ -100,7 +100,7 @@
 // <e> NRF_BL_DFU_ENTER_METHOD_BUTTON - Enter DFU mode on button press.
 //==========================================================
 #ifndef NRF_BL_DFU_ENTER_METHOD_BUTTON
-#define NRF_BL_DFU_ENTER_METHOD_BUTTON 1
+#define NRF_BL_DFU_ENTER_METHOD_BUTTON 0
 #endif
 // <o> NRF_BL_DFU_ENTER_METHOD_BUTTON_PIN  - Button for entering DFU mode.
  
@@ -177,7 +177,7 @@
  
 
 #ifndef NRF_BL_DFU_ENTER_METHOD_BUTTONLESS
-#define NRF_BL_DFU_ENTER_METHOD_BUTTONLESS 0
+#define NRF_BL_DFU_ENTER_METHOD_BUTTONLESS 1
 #endif
 
 // </h> 

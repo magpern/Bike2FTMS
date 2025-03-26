@@ -110,7 +110,7 @@ SRC_FILES += \
   $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_saadc.c
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_saadc.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -175,6 +175,11 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/nfc/ndef \
   $(SDK_ROOT)/components/nfc/platform \
   $(SDK_ROOT)/modules/nrfx/hal \
+  $(SDK_ROOT)/components/libraries/bootloader \
+  $(SDK_ROOT)/components/libraries/bootloader/dfu \
+  $(SDK_ROOT)/components/ble/ble_services/ble_dfu \
+  $(SDK_ROOT)/components/libraries/bootloader/ble_dfu \
+  $(SDK_ROOT)/components/libraries/svc \
   $(PROJ_DIR) \
   $(PROJ_DIR)/src \
   $(PROJ_DIR)/src/ble \
@@ -296,6 +301,7 @@ APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
 MERGED_HEX     := merged_firmware.hex
 DFU_SETTINGS   := dfu_settings.hex
 
+#change this VALIDATE_GENERATED_CRC
 merge_all:
 	@echo Generating DFU settings...
 	nrfutil settings generate --family NRF52840 \
@@ -303,7 +309,7 @@ merge_all:
 	  --application-version 1 \
 	  --bootloader-version 1 \
 	  --bl-settings-version 2 \
-    --app-boot-validation VALIDATE_GENERATED_CRC \
+    --app-boot-validation NO_VALIDATION \
 	  $(DFU_SETTINGS)
 
 	@echo Merging: app + softdevice + bootloader + dfu_settings

@@ -3,7 +3,7 @@ _build/
 _build_*/
 build/
 build_*/
-armgcc/
+nrfenv/
 # Ignore object files and binaries
 *.o
 *.out

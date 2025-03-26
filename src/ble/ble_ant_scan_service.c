@@ -11,6 +11,9 @@
 #include "common_definitions.h"
 #include <stdlib.h>  // ✅ Required for rand()
 #include "ant_scanner.h"
+//#include <nrf_bootloader.h>
+#include <nrf_bootloader_info.h>
+#include "nrf_power.h"
 
 #define ANT_LIB_CONFIG_MESG_OUT_FIELDS_ENABLE  0x01
 #define ANT_LIB_CONFIG_RSSI_MASK               0xC0
@@ -136,6 +139,12 @@ static void send_current_ant_device_id(void) {
     }
 }
 
+void enter_dfu_mode(void)
+{
+    nrf_power_gpregret_set(BOOTLOADER_DFU_START);
+    NVIC_SystemReset();  // Triggers soft reset, bootloader sees GPREGRET and enters DFU
+}
+
 /**@brief BLE write handler for start scan & device selection */
 static void on_write(ble_evt_t const *p_ble_evt) {
     ble_gatts_evt_write_t const *p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
@@ -169,6 +178,10 @@ static void on_write(ble_evt_t const *p_ble_evt) {
                 } else if (command == 0x04) {
                     send_current_ant_device_id();
                 }
+                break;
+            case 0x05:  // 🔄 Enter DFU Mode
+                NRF_LOG_INFO("🔄 Entering DFU Mode (Command: 0x%02X)", command);
+                enter_dfu_mode();  // ✅ Enter DFU mode
                 break;
 
             default:

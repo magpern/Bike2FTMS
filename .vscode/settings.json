@@ -39,6 +39,11 @@
         "ant_parameters.h": "c",
         "ant_interface.h": "c",
         "ant_scanner.h": "c",
-        "ant_channel_config.h": "c"
+        "ant_channel_config.h": "c",
+        "nrf_bootloader.h": "c",
+        "nrf_dfu.h": "c",
+        "ble_dfu.h": "c",
+        "nrf_dfu_ble_svci_bond_sharing.h": "c",
+        "nrf_svci.h": "c"
     }
 }

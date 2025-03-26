@@ -259,6 +259,7 @@ void services_init(void)
     app_timer_start(battery_timer, APP_TIMER_TICKS(120000), NULL);  // Update every 2 minutes
 
     ble_custom_service_init();  
+
 }
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
@@ -291,6 +292,16 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             // Just restart BLE advertising
             start_ble_advertising();  
             break;
+
+        case BLE_GAP_EVT_CONN_PARAM_UPDATE:
+        {
+            const ble_gap_conn_params_t *params = &p_ble_evt->evt.gap_evt.params.conn_param_update.conn_params;
+            NRF_LOG_INFO("📶 Conn Params Updated: min=%d, max=%d, latency=%d, timeout=%d",
+                            params->min_conn_interval,
+                            params->max_conn_interval,
+                            params->slave_latency,
+                            params->conn_sup_timeout);
+        }
 
 #ifndef S140
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
