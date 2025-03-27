@@ -5,8 +5,7 @@ OUTPUT_DIRECTORY := _build
 SDK_ROOT := $(NRF5_SDK_ROOT)
 PROJ_DIR := $(abspath ../../)
 
-$(OUTPUT_DIRECTORY)/satsbike_bootloader_s340.out: \
-  LINKER_SCRIPT  := secure_bootloader_gcc_nrf52.ld
+LINKER_SCRIPT := secure_bootloader_gcc_nrf52.ld
 
 # Source files common to all targets
 SRC_FILES += \
@@ -228,6 +227,9 @@ include $(TEMPLATE_PATH)/Makefile.common
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 .PHONY: flash flash_softdevice erase
+
+info:
+	@echo Using LINKER_SCRIPT: $(LINKER_SCRIPT)
 
 # Flash the program
 flash: default

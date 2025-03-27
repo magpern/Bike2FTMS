@@ -12,6 +12,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,10 +23,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.9.2
+      - name: Derive version from Git
+        id: version
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          SHA=$(git rev-parse --short HEAD)
+          VERSION="${TAG#v}-${SHA}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9.2'
+          python-version: '3.9'
 
       - name: Install nrfutil 6.1.7
         run: |
@@ -36,6 +47,13 @@ jobs:
           unzip nRF5_SDK_17.1.0_ddde560.zip -d /opt/
           rm nRF5_SDK_17.1.0_ddde560.zip
 
+      - name: Install mergehex from Nordic CLI tools
+        run: |
+            wget https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
+            tar -xzf nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
+            sudo cp nrf-command-line-tools/bin/mergehex /usr/local/bin/
+            sudo chmod +x /usr/local/bin/mergehex
+        
       - name: Set up environment variables
         run: |
           echo "NRF5_SDK_ROOT=/opt/nRF5_SDK_17.1.0_ddde560" >> $GITHUB_ENV
@@ -61,13 +79,13 @@ jobs:
 
       - name: Build bootloader
         run: |
-          cd bootloader/bootloader_s340/armgcc
-          make -j4 DEBUG=0 OPT=-O3
+            cd bootloader/bootloader_s340/armgcc
+            make -j4 DEBUG=0 OPT=-Os
 
       - name: Build application
         run: |
           cd pca10056/s340/armgcc
-          make -j4 DEBUG=0 OPT=-O3
+          make -j4 RELEASE=1 OPT=-O3 VERSION="${{ steps.version.outputs.version }}"
 
       - name: Generate DFU settings
         run: |
@@ -84,7 +102,7 @@ jobs:
         run: |
           cd pca10056/s340/armgcc
           mergehex --merge \
-            ../../../../components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex \
+            ../hex/ANT_s340_nrf52_7.0.1.hex \
             ../../../bootloader/bootloader_s340/armgcc/_build/satsbike_bootloader_s340.hex \
             _build/nrf52840_xxaa.hex \
             dfu_settings.hex \
@@ -92,11 +110,14 @@ jobs:
 
       - name: Create DFU package
         run: |
-          nrfutil pkg generate --hw-version 52 --sd-req 0x00 \
+          VERSION="${{ steps.version.outputs.version }}"
+          nrfutil pkg generate --hw-version 52 \
             --application pca10056/s340/armgcc/_build/nrf52840_xxaa.hex \
             --application-version 1 \
             --softdevice pca10056/s340/hex/ANT_s340_nrf52_7.0.1.hex \
-            satsbike_dfu.zip
+            --sd-id 0xCE \
+            --sd-req 0xCE \
+            satsbike_dfu-${VERSION}.zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -106,7 +127,7 @@ jobs:
             pca10056/s340/armgcc/_build/nrf52840_xxaa.hex
             pca10056/s340/armgcc/_build/nrf52840_xxaa.bin
             pca10056/s340/armgcc/merged_firmware.hex
-            satsbike_dfu.zip
+            satsbike_dfu-${{ steps.version.outputs.version }}.zip
           retention-days: 7
 
       - name: Show firmware size
@@ -121,6 +142,6 @@ jobs:
         with:
           files: |
             pca10056/s340/armgcc/merged_firmware.hex
-            satsbike_dfu.zip
+            satsbike_dfu-${{ steps.version.outputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

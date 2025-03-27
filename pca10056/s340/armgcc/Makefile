@@ -220,8 +220,14 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
 CFLAGS += -Wno-array-bounds
 GIT_VERSION := $(shell git describe --tags --always --dirty)
-CFLAGS += -DFIRMWARE_VERSION=\"$(GIT_VERSION)\"
-CFLAGS += -DDEBUG
+FIRMWARE_VERSION ?= $(GIT_VERSION)
+CFLAGS += -DFIRMWARE_VERSION=\"$(FIRMWARE_VERSION)\"
+ifeq ($(RELEASE),1)
+  OPT = -O3
+else
+  OPT = -Og -g3
+  CFLAGS += -DDEBUG
+endif
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
@@ -321,6 +327,23 @@ merge_all:
 	  --output $(MERGED_HEX)
 
 	@echo Done! $(MERGED_HEX)
+
+PKG_NAME      := satsbike_dfu.zip
+HW_VERSION    := 52
+APP_VERSION   := 1
+SD_ID         := 0xCE  # Use actual value if SoftDevice has a known ID
+SD_REQ        := 0xCE
+
+pkg: merge_all
+	@echo Creating DFU package...
+	nrfutil pkg generate --hw-version $(HW_VERSION) \
+	  --application $(APP_HEX) \
+	  --application-version $(APP_VERSION) \
+	  --softdevice $(SOFTDEVICE_HEX) \
+	  --sd-id $(SD_ID) \
+	  --sd-req $(SD_REQ) \
+	  $(PKG_NAME)
+	@echo Done! $(PKG_NAME)
 
 flash_all: merge_all
 	@echo Flashing merged firmware...
