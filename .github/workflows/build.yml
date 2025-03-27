@@ -36,6 +36,13 @@ jobs:
           unzip nRF5_SDK_17.1.0_ddde560.zip -d /opt/
           rm nRF5_SDK_17.1.0_ddde560.zip
 
+      - name: Install nRF Command Line Tools (for mergehex)
+        run: |
+          wget https://www.nordicsemi.com/-/media/Software-and-other-downloads/Desktop-software/nRF-Command-Line-Tools/nRFCommandLineToolsLinux64tar.gz
+          tar -xzf nRFCommandLineToolsLinux64tar.gz
+          sudo cp nRF-Command-Line-Tools_*/mergehex/mergehex /usr/local/bin/
+          chmod +x /usr/local/bin/mergehex
+
       - name: Set up environment variables
         run: |
           echo "NRF5_SDK_ROOT=/opt/nRF5_SDK_17.1.0_ddde560" >> $GITHUB_ENV
