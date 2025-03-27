@@ -41,7 +41,7 @@ jobs:
             wget https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
             tar -xzf nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
             sudo cp nrf-command-line-tools/bin/mergehex /usr/local/bin/
-            chmod +x /usr/local/bin/mergehex
+            sudo chmod +x /usr/local/bin/mergehex
         
       - name: Set up environment variables
         run: |
