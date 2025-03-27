@@ -220,8 +220,14 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
 CFLAGS += -Wno-array-bounds
 GIT_VERSION := $(shell git describe --tags --always --dirty)
-CFLAGS += -DFIRMWARE_VERSION=\"$(GIT_VERSION)\"
-CFLAGS += -DDEBUG
+FIRMWARE_VERSION ?= $(GIT_VERSION)
+CFLAGS += -DFIRMWARE_VERSION=\"$(FIRMWARE_VERSION)\"
+ifeq ($(RELEASE),1)
+  OPT = -O3
+else
+  OPT = -Og -g3
+  CFLAGS += -DDEBUG
+endif
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
