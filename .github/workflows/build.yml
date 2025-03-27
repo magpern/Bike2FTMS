@@ -92,10 +92,12 @@ jobs:
 
       - name: Create DFU package
         run: |
-          nrfutil pkg generate --hw-version 52 --sd-req 0x00 \
+          nrfutil pkg generate --hw-version 52 \
             --application pca10056/s340/armgcc/_build/nrf52840_xxaa.hex \
             --application-version 1 \
             --softdevice pca10056/s340/hex/ANT_s340_nrf52_7.0.1.hex \
+            --sd-id 0xCE \
+            --sd-req 0xCE \
             satsbike_dfu.zip
 
       - name: Upload artifacts
