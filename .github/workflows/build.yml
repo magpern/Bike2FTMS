@@ -61,8 +61,8 @@ jobs:
 
       - name: Build bootloader
         run: |
-          cd bootloader/bootloader_s340/armgcc
-          make -j4 DEBUG=0 OPT=-O3
+            cd bootloader/bootloader_s340/armgcc
+            make -j4 DEBUG=0 OPT=-O3 LINKER_SCRIPT=secure_bootloader_gcc_nrf52.ld
 
       - name: Build application
         run: |
