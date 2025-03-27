@@ -137,6 +137,7 @@ int main(void)
     ret_val = nrf_bootloader_flash_protect(BOOTLOADER_START_ADDR, BOOTLOADER_SIZE);
     APP_ERROR_CHECK(ret_val);
 
+    // ✅ Initialize logging first
     (void) NRF_LOG_INIT(nrf_bootloader_dfu_timer_counter_get);
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 
@@ -152,6 +153,7 @@ int main(void)
 
     APP_ERROR_CHECK_BOOL(false);
 }
+
 
 /**
  * @}
