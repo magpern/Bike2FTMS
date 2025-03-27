@@ -91,7 +91,7 @@ jobs:
         run: |
           cd pca10056/s340/armgcc
           mergehex --merge \
-            ../../../../components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex \
+            ../hex/ANT_s340_nrf52_7.0.1.hex \
             ../../../bootloader/bootloader_s340/armgcc/_build/satsbike_bootloader_s340.hex \
             _build/nrf52840_xxaa.hex \
             dfu_settings.hex \
