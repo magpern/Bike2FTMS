@@ -1,11 +1,14 @@
 name: Build and Create DFU
 
 on:
+  workflow_dispatch:  # 👈 Manual trigger enabled
+
   push:
     tags:
       - '*'  # Only run on tags
     branches-ignore:
-      - '**'  # Don't run on regular branch pushes
+      - '**'
+
   pull_request:
     branches: [ main ]
 
@@ -17,15 +20,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.9.2
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.9.2'
 
-      - name: Install dependencies
+      - name: Install nrfutil 6.1.7
         run: |
           python -m pip install --upgrade pip
-          pip install nrfutil
+          pip install nrfutil==6.1.7
 
       - name: Download nRF5 SDK
         run: |
@@ -56,17 +59,43 @@ jobs:
           sed -i 's|#define ANT_LICENSE_KEY .*|#define ANT_LICENSE_KEY "'"${{ secrets.ANT_LICENSE_KEY }}"'"|' \
           /opt/nRF5_SDK_17.1.0_ddde560/components/softdevice/s340/headers/nrf_sdm.h
 
-      - name: Build project
+      - name: Build bootloader
+        run: |
+          cd bootloader/bootloader_s340/armgcc
+          make -j4 DEBUG=0 OPT=-O3
+
+      - name: Build application
         run: |
           cd pca10056/s340/armgcc
           make -j4 DEBUG=0 OPT=-O3
+
+      - name: Generate DFU settings
+        run: |
+          cd pca10056/s340/armgcc
+          nrfutil settings generate --family NRF52840 \
+            --application _build/nrf52840_xxaa.hex \
+            --application-version 1 \
+            --bootloader-version 1 \
+            --bl-settings-version 2 \
+            --app-boot-validation NO_VALIDATION \
+            dfu_settings.hex
+
+      - name: Merge firmware hex
+        run: |
+          cd pca10056/s340/armgcc
+          mergehex --merge \
+            ../../../../components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex \
+            ../../../bootloader/bootloader_s340/armgcc/_build/satsbike_bootloader_s340.hex \
+            _build/nrf52840_xxaa.hex \
+            dfu_settings.hex \
+            --output merged_firmware.hex
 
       - name: Create DFU package
         run: |
           nrfutil pkg generate --hw-version 52 --sd-req 0x00 \
             --application pca10056/s340/armgcc/_build/nrf52840_xxaa.hex \
             --application-version 1 \
-            --softdevice pca10056/s340/hex/ANT_s340_nrf52_7.0.hex \
+            --softdevice pca10056/s340/hex/ANT_s340_nrf52_7.0.1.hex \
             satsbike_dfu.zip
 
       - name: Upload artifacts
@@ -76,6 +105,7 @@ jobs:
           path: |
             pca10056/s340/armgcc/_build/nrf52840_xxaa.hex
             pca10056/s340/armgcc/_build/nrf52840_xxaa.bin
+            pca10056/s340/armgcc/merged_firmware.hex
             satsbike_dfu.zip
           retention-days: 7
 
@@ -83,14 +113,14 @@ jobs:
         run: |
           echo "🚀 Firmware size:"
           stat --printf="%n: %s bytes\n" satsbike_dfu.zip || echo "Not found"
+          stat --printf="%n: %s bytes\n" pca10056/s340/armgcc/merged_firmware.hex || echo "Not found"
 
-      - name: Upload to release
+      - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            pca10056/s340/armgcc/merged_firmware.hex
+            satsbike_dfu.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./satsbike_dfu.zip
-          asset_name: satsbike_dfu.zip
-          asset_content_type: application/zip
