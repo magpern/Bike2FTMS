@@ -220,14 +220,29 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
 CFLAGS += -Wno-array-bounds
 GIT_VERSION := $(shell git describe --tags --always --dirty)
+
+# Add "-snapshot" if not in CI environment
+ifeq ($(CI),1)
+  FIRMWARE_VERSION := $(GIT_VERSION)
+else
+  FIRMWARE_VERSION := $(GIT_VERSION)-snapshot
+endif
+
+# Allow manual override via VERSION=...
 FIRMWARE_VERSION ?= $(GIT_VERSION)
+
+# Inject version as macro
 CFLAGS += -DFIRMWARE_VERSION=\"$(FIRMWARE_VERSION)\"
+
+# Optimization flags and debug toggling
 ifeq ($(RELEASE),1)
   OPT = -O3
 else
   OPT = -Og -g3
   CFLAGS += -DDEBUG
 endif
+
+
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
@@ -342,6 +357,7 @@ pkg: merge_all
 	  --softdevice $(SOFTDEVICE_HEX) \
 	  --sd-id $(SD_ID) \
 	  --sd-req $(SD_REQ) \
+    --debug-mode \
 	  $(PKG_NAME)
 	@echo Done! $(PKG_NAME)
 

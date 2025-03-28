@@ -26,5 +26,5 @@ void get_hardware_revision(char *hw_rev_str, size_t len)
 /**@brief Function to get the firmware version. */
 void get_firmware_version(char *version_str, size_t len)
 {
-    snprintf(version_str, len, "FW %s", FIRMWARE_VERSION);
+    snprintf(version_str, len, "%s", FIRMWARE_VERSION);
 }

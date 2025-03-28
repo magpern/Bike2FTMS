@@ -85,7 +85,7 @@ jobs:
       - name: Build application
         run: |
           cd pca10056/s340/armgcc
-          make -j4 RELEASE=1 OPT=-O3 VERSION="${{ steps.version.outputs.version }}"
+          make -j4 RELEASE=1 OPT=-O3 VERSION="${{ steps.version.outputs.version }}" CI=1
 
       - name: Generate DFU settings
         run: |
