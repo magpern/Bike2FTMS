@@ -58,6 +58,13 @@
 //==========================================================
 // <q> NRF_BL_APP_CRC_CHECK_SKIPPED_ON_GPREGRET2  - Skip CRC integrity check of the application when bit 1 (0-indexed) is set in the GPREGRET2 register.
  
+#define APP_TIMER_ENABLED 1
+#define APP_TIMER_CONFIG_RTC_FREQUENCY 0
+#define APP_TIMER_CONFIG_IRQ_PRIORITY 6
+#define APP_TIMER_CONFIG_OP_QUEUE_SIZE 4
+#define APP_TIMER_CONFIG_USE_SCHEDULER 0
+#define APP_TIMER_CONFIG_SWI_NUMBER 0
+#define APP_TIMER_CONFIG_LOG_ENABLED 0
 
 // <i> Only CRC checks can be skipped. For other boot validation types, the GPREGRET2 register is ignored.
 

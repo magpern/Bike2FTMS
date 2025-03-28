@@ -44,6 +44,9 @@
         "nrf_dfu.h": "c",
         "ble_dfu.h": "c",
         "nrf_dfu_ble_svci_bond_sharing.h": "c",
-        "nrf_svci.h": "c"
+        "nrf_svci.h": "c",
+        "boards.h": "c",
+        "nrf_bootloader_dfu_timers.h": "c",
+        "nrf_bootloader_info.h": "c"
     }
 }

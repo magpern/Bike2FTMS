@@ -348,6 +348,7 @@ HW_VERSION    := 52
 APP_VERSION   := 1
 SD_ID         := 0xCE  # Use actual value if SoftDevice has a known ID
 SD_REQ        := 0xCE
+PRIVATE_KEY   := private_key.pem
 
 pkg: merge_all
 	@echo Creating DFU package...
@@ -357,7 +358,7 @@ pkg: merge_all
 	  --softdevice $(SOFTDEVICE_HEX) \
 	  --sd-id $(SD_ID) \
 	  --sd-req $(SD_REQ) \
-    --debug-mode \
+    --key-file $(PRIVATE_KEY) \
 	  $(PKG_NAME)
 	@echo Done! $(PKG_NAME)
 

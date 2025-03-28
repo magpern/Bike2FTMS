@@ -77,6 +77,9 @@ jobs:
           sed -i 's|#define ANT_LICENSE_KEY .*|#define ANT_LICENSE_KEY "'"${{ secrets.ANT_LICENSE_KEY }}"'"|' \
           /opt/nRF5_SDK_17.1.0_ddde560/components/softdevice/s340/headers/nrf_sdm.h
 
+      - name: Create DFU private key
+        run: echo "${{ secrets.DFU_PRIVATE_KEY }}" > private_key.pem
+
       - name: Build bootloader
         run: |
             cd bootloader/bootloader_s340/armgcc
