@@ -54,3 +54,4 @@ pca10056/s340/ses/flash_placement.xml
 *.icf
 *.uvprojx
 *.emSession
+pca10056/s340/armgcc/private_key.pem

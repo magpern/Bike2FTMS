@@ -35,6 +35,9 @@
                 "DEBUG",
                 "DEBUG_NRF"
             ],
+            "forcedInclude": [
+                "D:/nRF5_SDK/projects/SatsBike/pca10056/s340/config/sdk_config.h"
+            ],
             "intelliSenseMode": "gcc-arm",
             "compilerPath": "C:/gnu_arm_embedded/bin/arm-none-eabi-gcc.exe",
             "compilerArgs": [
