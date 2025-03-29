@@ -1,51 +1,3 @@
-/**
- * Copyright (c) 2016 - 2021, Nordic Semiconductor ASA
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form, except as embedded into a Nordic
- *    Semiconductor ASA integrated circuit in a product or a software update for
- *    such product, must reproduce the above copyright notice, this list of
- *    conditions and the following disclaimer in the documentation and/or other
- *    materials provided with the distribution.
- *
- * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * 4. This software, with or without modification, must only be used with a
- *    Nordic Semiconductor ASA integrated circuit.
- *
- * 5. Any software provided in binary form under this license must not be reverse
- *    engineered, decompiled, modified and/or disassembled.
- *
- * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
-/** @file
- *
- * @defgroup bootloader_secure_ble main.c
- * @{
- * @ingroup dfu_bootloader_api
- * @brief Bootloader project main file for secure DFU.
- *
- */
-
 #include <stdint.h>
 #include "boards.h"
 #include "nrf_mbr.h"
@@ -60,13 +12,31 @@
 #include "app_error_weak.h"
 #include "nrf_bootloader_info.h"
 #include "nrf_delay.h"
+#include "app_timer.h"
+
+#define DFU_INIT_TIMEOUT_MS       (30 * 1000)
+#define DFU_DISCONNECT_TIMEOUT_MS (10 * 1000)
+
+APP_TIMER_DEF(m_dfu_timeout_timer);
+static bool m_is_connected = false;
+
+static void dfu_timeout_handler(void * p_context)
+{
+    NRF_LOG_WARNING("⏱️ DFU timeout — rebooting device.");
+    NRF_LOG_FINAL_FLUSH();
+    NVIC_SystemReset();
+}
+
+static void start_dfu_timeout(uint32_t timeout_ms)
+{
+    app_timer_stop(m_dfu_timeout_timer);
+    app_timer_start(m_dfu_timeout_timer, APP_TIMER_TICKS(timeout_ms), NULL);
+}
 
 static void on_error(void)
 {
     NRF_LOG_FINAL_FLUSH();
-
 #if NRF_MODULE_ENABLED(NRF_LOG_BACKEND_RTT)
-    // To allow the buffer to be flushed by the host.
     nrf_delay_ms(100);
 #endif
 #ifdef NRF_DFU_DEBUG_VERSION
@@ -75,30 +45,24 @@ static void on_error(void)
     NVIC_SystemReset();
 }
 
-
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t * p_file_name)
 {
     NRF_LOG_ERROR("%s:%d", p_file_name, line_num);
     on_error();
 }
 
-
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
-    NRF_LOG_ERROR("Received a fault! id: 0x%08x, pc: 0x%08x, info: 0x%08x", id, pc, info);
+    NRF_LOG_ERROR("Fault! id: 0x%08x, pc: 0x%08x, info: 0x%08x", id, pc, info);
     on_error();
 }
-
 
 void app_error_handler_bare(uint32_t error_code)
 {
-    NRF_LOG_ERROR("Received an error: 0x%08x!", error_code);
+    NRF_LOG_ERROR("Error: 0x%08x!", error_code);
     on_error();
 }
 
-/**
- * @brief Function notifies certain events in DFU process.
- */
 static void dfu_observer(nrf_dfu_evt_type_t evt_type)
 {
     switch (evt_type)
@@ -110,51 +74,60 @@ static void dfu_observer(nrf_dfu_evt_type_t evt_type)
             bsp_board_led_on(BSP_BOARD_LED_0);
             bsp_board_led_on(BSP_BOARD_LED_1);
             bsp_board_led_off(BSP_BOARD_LED_2);
+
+            // Start failsafe timer if no connection
+            if (!m_is_connected)
+            {
+                start_dfu_timeout(DFU_INIT_TIMEOUT_MS);
+            }
             break;
+
         case NRF_DFU_EVT_TRANSPORT_ACTIVATED:
             bsp_board_led_off(BSP_BOARD_LED_1);
             bsp_board_led_on(BSP_BOARD_LED_2);
+            m_is_connected = true;
+
+            app_timer_stop(m_dfu_timeout_timer);
             break;
-        case NRF_DFU_EVT_DFU_STARTED:
+
+        case NRF_DFU_EVT_TRANSPORT_DEACTIVATED:
+            m_is_connected = false;
+            start_dfu_timeout(DFU_DISCONNECT_TIMEOUT_MS);
             break;
+
         default:
             break;
     }
 }
 
-
-/**@brief Function for application main entry. */
 int main(void)
 {
-    uint32_t ret_val;
+    uint32_t ret;
 
-    // Must happen before flash protection is applied, since it edits a protected page.
     nrf_bootloader_mbr_addrs_populate();
 
-    // Protect MBR and bootloader code from being overwritten.
-    ret_val = nrf_bootloader_flash_protect(0, MBR_SIZE);
-    APP_ERROR_CHECK(ret_val);
-    ret_val = nrf_bootloader_flash_protect(BOOTLOADER_START_ADDR, BOOTLOADER_SIZE);
-    APP_ERROR_CHECK(ret_val);
+    ret = nrf_bootloader_flash_protect(0, MBR_SIZE);
+    APP_ERROR_CHECK(ret);
+    ret = nrf_bootloader_flash_protect(BOOTLOADER_START_ADDR, BOOTLOADER_SIZE);
+    APP_ERROR_CHECK(ret);
 
-    // ✅ Initialize logging first
     (void) NRF_LOG_INIT(nrf_bootloader_dfu_timer_counter_get);
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 
-    NRF_LOG_INFO("Inside main");
+    NRF_LOG_INFO("Bootloader: DFU start");
 
-    ret_val = nrf_bootloader_init(dfu_observer);
-    APP_ERROR_CHECK(ret_val);
+    // Initialize timers and timeout
+    ret = app_timer_init();
+    APP_ERROR_CHECK(ret);
 
-    NRF_LOG_FLUSH();
+    ret = app_timer_create(&m_dfu_timeout_timer, APP_TIMER_MODE_SINGLE_SHOT, dfu_timeout_handler);
+    APP_ERROR_CHECK(ret);
 
-    NRF_LOG_ERROR("After main, should never be reached.");
-    NRF_LOG_FLUSH();
+    ret = nrf_bootloader_init(dfu_observer);
+    APP_ERROR_CHECK(ret);
+
+    NRF_LOG_ERROR("Unexpected exit");
+    NRF_LOG_FINAL_FLUSH();
 
     APP_ERROR_CHECK_BOOL(false);
 }
-
-
-/**
- * @}
- */

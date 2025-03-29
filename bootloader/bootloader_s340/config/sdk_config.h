@@ -48,6 +48,22 @@
 #endif
 // <h> nRF_Bootloader 
 
+#define NRF_CLOCK_ENABLED 1
+#define NRF_CLOCK_CONFIG_LF_SRC 1  // 0 = RC, 1 = XTAL, 2 = Synth (choose what your board uses)
+#define NRF_CLOCK_CONFIG_LF_RC_CTIV 0
+#define NRF_CLOCK_CONFIG_LF_RC_TEMP_CTIV 0
+#define NRF_CLOCK_CONFIG_IRQ_PRIORITY 6
+
+#define APP_TIMER_ENABLED 1
+#define APP_TIMER_KEEPS_RTC_ACTIVE 1
+#define APP_TIMER_CONFIG_RTC_FREQUENCY 0
+#define APP_TIMER_CONFIG_IRQ_PRIORITY 6
+#define APP_TIMER_CONFIG_OP_QUEUE_SIZE 4
+#define APP_TIMER_CONFIG_USE_SCHEDULER 0
+#define APP_TIMER_CONFIG_SWI_NUMBER 0
+#define APP_TIMER_CONFIG_LOG_ENABLED 0
+
+
 //==========================================================
 // <h> nrf_bootloader - Bootloader settings
 
