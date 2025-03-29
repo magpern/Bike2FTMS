@@ -295,6 +295,14 @@ flash: default
 	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
+.PHONY: build_all build_bootloader
+
+build_bootloader:
+	@echo Building bootloader...
+	$(MAKE) -C ../../../bootloader/bootloader_s340/armgcc
+
+build_all: build_bootloader default
+
 # Flash softdevice
 flash_softdevice:
 	@echo Flashing: s340_nrf52_7.0.1.hex
@@ -345,7 +353,7 @@ pkg: merge_all
 	  $(PKG_NAME)
 	@echo Done! $(PKG_NAME)
 
-flash_all: merge_all
+flash_all: build_all merge_all
 	@echo Flashing merged firmware...
 	nrfjprog -f nrf52 --program $(MERGED_HEX) --sectorerase
 	nrfjprog -f nrf52 --reset
