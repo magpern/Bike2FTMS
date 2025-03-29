@@ -113,12 +113,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           nrfutil pkg generate --hw-version 52 \
             --application pca10056/s340/armgcc/_build/nrf52840_xxaa.hex \
-            --application-version 1 \
-            --softdevice pca10056/s340/hex/ANT_s340_nrf52_7.0.1.hex \
-            --sd-id 0xCE \
+            --application-version ${{ github.run_number }} \
             --sd-req 0xCE \
             satsbike_dfu-${VERSION}.zip
-
+            
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
