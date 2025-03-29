@@ -220,8 +220,19 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
 CFLAGS += -Wno-array-bounds
 GIT_VERSION := $(shell git describe --tags --always --dirty)
+# Add "-snapshot" if not in CI environment
+ifeq ($(CI),1)
+  FIRMWARE_VERSION := $(GIT_VERSION)
+else
+  FIRMWARE_VERSION := $(GIT_VERSION)-snapshot
+endif
+
+# Allow manual override via VERSION=...
 FIRMWARE_VERSION ?= $(GIT_VERSION)
+
+# Inject version as macro
 CFLAGS += -DFIRMWARE_VERSION=\"$(FIRMWARE_VERSION)\"
+
 ifeq ($(RELEASE),1)
   OPT = -O3
 else
