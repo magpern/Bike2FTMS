@@ -101,10 +101,6 @@ void ble_power_timer_handler(void * p_context) {
         ble_cps_send_power_measurement(&m_cps, latest_power_watts);
     }
     if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID) {    
-        ble_ftms_data_t ftms_data = {
-            .power_watts = latest_power_watts,
-            .cadence_rpm = latest_cadence_rpm
-        };
 
         NRF_LOG_INFO("🚴 FTMS Power queed: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
         // ✅ Send data to FTMS service (handles dedup, training state, notification)

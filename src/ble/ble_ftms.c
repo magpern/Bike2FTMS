@@ -80,26 +80,6 @@ static uint32_t training_status_char_add(ble_ftms_t * p_ftms) {
     return err_code;
 }
 
-/**@brief Function for adding the Fitness Machine Status Characteristic */
-static uint32_t machine_status_char_add(ble_ftms_t * p_ftms) {
-    ble_add_char_params_t add_char_params = {0};
-    add_char_params.uuid              = BLE_UUID_FITNESS_MACHINE_STATUS_CHAR;
-    add_char_params.uuid_type         = BLE_UUID_TYPE_BLE;
-    add_char_params.init_len          = 1;   
-    add_char_params.max_len           = 3;   
-    add_char_params.char_props.notify = 1;    
-    add_char_params.is_var_len        = true;  
-    add_char_params.cccd_write_access = SEC_OPEN;  
-
-    NRF_LOG_INFO("Adding Fitness Machine Status Characteristic...");
-
-    uint32_t err_code = characteristic_add(p_ftms->service_handle, &add_char_params, &p_ftms->fitness_machine_status_handles);
-    if (err_code != NRF_SUCCESS) {
-        NRF_LOG_ERROR("Failed to add Machine Status Char: 0x%08X", err_code);
-    }
-    return err_code;
-}
-
 /**@brief Function for adding the FTMS Feature characteristic */
 uint32_t ble_ftms_feature_char_add(ble_ftms_t * p_ftms) {
     ble_add_char_params_t add_char_params = {0};
@@ -158,9 +138,6 @@ uint32_t ble_ftms_init(ble_ftms_t * p_ftms) {
     if (err_code != NRF_SUCCESS) return err_code;
     
     err_code = training_status_char_add(p_ftms);
-    if (err_code != NRF_SUCCESS) return err_code;
-    
-    err_code = machine_status_char_add(p_ftms);
     if (err_code != NRF_SUCCESS) return err_code;
     
     err_code = ble_ftms_feature_char_add(p_ftms);
