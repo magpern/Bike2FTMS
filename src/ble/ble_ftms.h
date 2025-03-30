@@ -54,7 +54,7 @@ typedef struct {
     ble_gatts_char_handles_t   training_status_handles;
     ble_gatts_char_handles_t   fitness_machine_status_handles;
     ble_gatts_char_handles_t   ftms_feature_handles;
-    uint16_t                  conn_handle;
+    uint16_t                   conn_handle;
 } ble_ftms_t;
 
 /**@brief Function for initializing the FTMS service. */

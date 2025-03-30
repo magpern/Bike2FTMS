@@ -44,6 +44,7 @@
         "nrf_dfu.h": "c",
         "ble_dfu.h": "c",
         "nrf_dfu_ble_svci_bond_sharing.h": "c",
-        "nrf_svci.h": "c"
+        "nrf_svci.h": "c",
+        "ble_battery_service.h": "c"
     }
 }

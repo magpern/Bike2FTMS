@@ -1,6 +1,7 @@
 #include "ble_ftms.h"
 #include "ble_srv_common.h"
 #include "nrf_log.h"
+#include <common_definitions.h>
 
 /**@brief Function for adding the Indoor Bike Data Characteristic */
 static uint32_t indoor_bike_data_char_add(ble_ftms_t * p_ftms) {
@@ -96,6 +97,7 @@ uint32_t ble_ftms_init(ble_ftms_t * p_ftms) {
     // Assign service UUID
     ble_uuid.type = BLE_UUID_TYPE_BLE;
     ble_uuid.uuid = BLE_UUID_FTMS_SERVICE;
+    p_ftms->conn_handle = BLE_CONN_HANDLE_INVALID;
 
     // Add service to BLE stack
     NRF_LOG_INFO("Adding FTMS Service...");
@@ -123,51 +125,93 @@ uint32_t ble_ftms_init(ble_ftms_t * p_ftms) {
     return NRF_SUCCESS;
 }
 
-/**@brief Function to send FTMS Indoor Bike Data */
+static int16_t last_power = -1;
+static uint8_t last_cadence = 0xFF;
+static uint8_t _duplicate_counter = 0;
+
 void ble_ftms_send_indoor_bike_data(ble_ftms_t * p_ftms, ble_ftms_data_t * p_data) {
     if (p_ftms->conn_handle == BLE_CONN_HANDLE_INVALID) return;
 
-    uint8_t encoded_data[15] = {0};  // Ensure buffer is initialized to zero
+    // Check if CCCD (Client Characteristic Configuration Descriptor) is enabled
+    uint16_t cccd_value = 0;
+    ble_gatts_value_t gatts_value = {
+        .p_value = (uint8_t*)&cccd_value,
+        .len = sizeof(cccd_value),
+        .offset = 0
+    };
 
-    // ✅ 1. Correct Flag Bytes (0x74 0x08 matches the NimBLE implementation)
-    encoded_data[0] = 0x74;  // Flag Byte 0: Speed, Cadence, Power, Resistance
-    encoded_data[1] = 0x08;  // Flag Byte 1: Time Present
+    uint32_t err_code = sd_ble_gatts_value_get(
+        p_ftms->conn_handle,
+        p_ftms->indoor_bike_data_handles.cccd_handle,  // Should be: indoor_bike_data_handles.cccd_handle
+        &gatts_value
+    );
 
-    // ✅ 2. Instantaneous Speed (Set to 0 km/h, since we don’t have speed data)
-    encoded_data[2] = 0x00;
+    if (err_code != NRF_SUCCESS || (cccd_value & BLE_GATT_HVX_NOTIFICATION) == 0) {
+        NRF_LOG_WARNING("⚠️ FTMS notifications not enabled. Skipping.");
+        return;
+    }
+
+    // 🧠 Deduplication logic
+    if (p_data->power_watts == last_power && p_data->cadence_rpm == last_cadence) {
+        _duplicate_counter++;
+        if (_duplicate_counter < RESET_DUPLICATE_COUNTER_EVERY_N_MESSAGE) {
+            NRF_LOG_WARNING("⏩ FTMS duplicate (P:%d W, C:%d RPM), skipping [%d/%d]",
+                          p_data->power_watts, p_data->cadence_rpm,
+                          _duplicate_counter, RESET_DUPLICATE_COUNTER_EVERY_N_MESSAGE);
+            return;
+        } else {
+            NRF_LOG_INFO("🔁 FTMS duplicate threshold reached. Forcing update (P:%d W, C:%d RPM)",
+                          p_data->power_watts, p_data->cadence_rpm);
+            _duplicate_counter = 0;  // Reset after forced send
+        }
+    } else {
+        _duplicate_counter = 0;  // Reset if values changed
+    }
+
+    // Prepare FTMS data packet
+    uint8_t encoded_data[15] = {0};
+
+    encoded_data[0] = 0x74;  // Flags
+    encoded_data[1] = 0x08;
+
+    encoded_data[2] = 0x00;  // Speed
     encoded_data[3] = 0x00;
 
-    // ✅ 3. Instantaneous Cadence (Multiply by 2 for FTMS resolution)
     uint16_t cadence = (uint16_t)(p_data->cadence_rpm * 2);
     encoded_data[4] = cadence & 0xFF;
     encoded_data[5] = (cadence >> 8) & 0xFF;
 
-    // ✅ 4. Total Distance (Set to 0 since we don’t track it yet)
-    encoded_data[6] = 0x00;
+    encoded_data[6] = 0x00;  // Distance
     encoded_data[7] = 0x00;
     encoded_data[8] = 0x00;
 
-    // ✅ 5. Resistance Level (Set to 0, we don’t control resistance)
-    encoded_data[9] = 0x00;
+    encoded_data[9]  = 0x00;  // Resistance Level
     encoded_data[10] = 0x00;
 
-    // ✅ 6. Instantaneous Power (Signed 16-bit, Little-Endian)
     int16_t power = (int16_t)p_data->power_watts;
     encoded_data[11] = power & 0xFF;
     encoded_data[12] = (power >> 8) & 0xFF;
 
-    // ✅ 7. Elapsed Time (Set to 0, we don't track elapsed time)
-    encoded_data[13] = 0x00;
+    encoded_data[13] = 0x00;  // Elapsed Time
     encoded_data[14] = 0x00;
 
-    // ✅ Send FTMS Data Over BLE
     ble_gatts_hvx_params_t hvx_params = {0};
     hvx_params.handle = p_ftms->indoor_bike_data_handles.value_handle;
     hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
     hvx_params.p_data = encoded_data;
-    hvx_params.p_len  = (uint16_t[]){sizeof(encoded_data)};
 
-    sd_ble_gatts_hvx(p_ftms->conn_handle, &hvx_params);
+    uint16_t len = sizeof(encoded_data);
+    hvx_params.p_len = &len;
+
+    err_code = sd_ble_gatts_hvx(p_ftms->conn_handle, &hvx_params);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("❌ Failed to send FTMS notification: 0x%08X", err_code);
+    } else {
+        NRF_LOG_INFO("🚴 FTMS Power Sent: %d W, Cadence: %d RPM", p_data->power_watts, p_data->cadence_rpm);
+        last_power = p_data->power_watts;
+        last_cadence = p_data->cadence_rpm;
+    }
 }
+
 
 

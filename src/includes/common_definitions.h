@@ -50,6 +50,8 @@
 #define CONN_INTERVAL_BASE              80                                           /**< Definition of 100 ms, when 1 unit is 1.25 ms. */
 #define SECOND_10_MS_UNITS              100      
 
+#define RESET_DUPLICATE_COUNTER_EVERY_N_MESSAGE 2  // Force send after 5 same values
+
 extern bool ble_started;  // Track if BLE is running
 extern bool ant_active;   // Track if ANT+ is running
 extern bool ble_shutdown_timer_running; // If BLE shutdown timer is active

@@ -8,7 +8,7 @@
 #include "battery_measurement.h"
 #include <stdlib.h>  // ✅ Required for `rand()`
 
-static ble_battery_t m_battery_service;
+ble_battery_t m_battery_service;
 static uint8_t last_battery_level = 255;  // Stores the last sent battery level (initialize with invalid value)
 static uint16_t last_voltage_mv = 0;  // Stores the last sent voltage
 
@@ -32,6 +32,7 @@ void ble_battery_service_init(void) {
     ble_uuid_t ble_uuid;
     ble_uuid.type = BLE_UUID_TYPE_BLE;
     ble_uuid.uuid = BATTERY_SERVICE_UUID;
+    m_battery_service.conn_handle = BLE_CONN_HANDLE_INVALID;
 
     sd_ble_gatts_service_add(BLE_GATTS_SRVC_TYPE_PRIMARY, &ble_uuid, &m_battery_service.service_handle);
 
@@ -80,7 +81,7 @@ void ble_battery_service_init(void) {
 
 /**@brief Function to send battery level updates */
 void ble_battery_update(uint8_t battery_level, uint16_t voltage_mv, uint8_t power_state) {
-    if (m_conn_handle == BLE_CONN_HANDLE_INVALID) return;
+    if (m_battery_service.conn_handle == BLE_CONN_HANDLE_INVALID) return;
 
     // ✅ Prevent redundant updates
     if (battery_level == last_battery_level && voltage_mv == last_voltage_mv) {
@@ -99,35 +100,35 @@ void ble_battery_update(uint8_t battery_level, uint16_t voltage_mv, uint8_t powe
     gatts_value.len = sizeof(battery_level);
     gatts_value.offset = 0;
     gatts_value.p_value = &battery_level;
-    err_code = sd_ble_gatts_value_set(m_conn_handle, m_battery_service.battery_level_handles.value_handle, &gatts_value);
+    err_code = sd_ble_gatts_value_set(m_battery_service.conn_handle, m_battery_service.battery_level_handles.value_handle, &gatts_value);
     APP_ERROR_CHECK(err_code);
 
     // ✅ Check if notifications are enabled before sending
     uint16_t cccd_value = 0;
     ble_gatts_value_t cccd_val = {.len = sizeof(cccd_value), .p_value = (uint8_t *)&cccd_value};
-    err_code = sd_ble_gatts_value_get(m_conn_handle, m_battery_service.battery_level_handles.cccd_handle, &cccd_val);
+    err_code = sd_ble_gatts_value_get(m_battery_service.conn_handle, m_battery_service.battery_level_handles.cccd_handle, &cccd_val);
 
     if (err_code == NRF_SUCCESS && (cccd_value & BLE_GATT_HVX_NOTIFICATION)) {
         hvx_params.handle = m_battery_service.battery_level_handles.value_handle;
         hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
         hvx_params.p_data = &battery_level;
         hvx_params.p_len = &gatts_value.len;
-        sd_ble_gatts_hvx(m_conn_handle, &hvx_params);
+        sd_ble_gatts_hvx(m_battery_service.conn_handle, &hvx_params);
     }
 
     // ✅ Update Battery Power State (0x2A1A)
     gatts_value.len = sizeof(power_state);
     gatts_value.p_value = &power_state;
-    err_code = sd_ble_gatts_value_set(m_conn_handle, m_battery_service.battery_power_state_handles.value_handle, &gatts_value);
+    err_code = sd_ble_gatts_value_set(m_battery_service.conn_handle, m_battery_service.battery_power_state_handles.value_handle, &gatts_value);
     APP_ERROR_CHECK(err_code);
 
     // ✅ Send Battery Power State notification
-    err_code = sd_ble_gatts_value_get(m_conn_handle, m_battery_service.battery_power_state_handles.cccd_handle, &cccd_val);
+    err_code = sd_ble_gatts_value_get(m_battery_service.conn_handle, m_battery_service.battery_power_state_handles.cccd_handle, &cccd_val);
     if (err_code == NRF_SUCCESS && (cccd_value & BLE_GATT_HVX_NOTIFICATION)) {
         hvx_params.handle = m_battery_service.battery_power_state_handles.value_handle;
         hvx_params.p_data = &power_state;
         hvx_params.p_len = &gatts_value.len;
-        sd_ble_gatts_hvx(m_conn_handle, &hvx_params);
+        sd_ble_gatts_hvx(m_battery_service.conn_handle, &hvx_params);
     }
 
     NRF_LOG_INFO("🔋 Sent Battery Level: %d%%, Voltage: %dmV, Power State: 0x%02X", battery_level, voltage_mv, power_state);
@@ -135,7 +136,10 @@ void ble_battery_update(uint8_t battery_level, uint16_t voltage_mv, uint8_t powe
 
 /**@brief Update Battery Level and Notify BLE */
 void update_battery(void *p_context) {
-    if (m_conn_handle == BLE_CONN_HANDLE_INVALID) return;
+    if (m_battery_service.conn_handle == BLE_CONN_HANDLE_INVALID) {
+        NRF_LOG_INFO("⚠️ No BLE connection, skipping battery update.");
+        return;
+    }
     
     static uint8_t last_battery_percent = 0xFF; // Invalid initial value
     static uint16_t last_voltage_mv = 0xFFFF;   // Invalid initial value
@@ -151,14 +155,12 @@ void update_battery(void *p_context) {
     battery_power_state |= (battery_percent < 10) ? (3 << 6) : (2 << 6);  // Critically Low or Good Level
 
     // ✅ Always send update when a BLE device connects
-    if (m_conn_handle != BLE_CONN_HANDLE_INVALID) {
-        if (battery_percent == last_battery_percent && voltage_mv == last_voltage_mv) {
-            NRF_LOG_INFO("🔋 No change in battery level or voltage, skipping update.");
-            return;
-        }
-        ble_battery_update(battery_percent, voltage_mv, battery_power_state);
-        last_battery_percent = battery_percent;
-        last_voltage_mv = voltage_mv;
-        NRF_LOG_INFO("🔋 Battery Updated: %d%% (%dmV), Power State: 0x%02X", battery_percent, voltage_mv, battery_power_state);
+    if (battery_percent == last_battery_percent && voltage_mv == last_voltage_mv) {
+        NRF_LOG_INFO("🔋 No change in battery level or voltage, skipping update.");
+        return;
     }
+    ble_battery_update(battery_percent, voltage_mv, battery_power_state);
+    last_battery_percent = battery_percent;
+    last_voltage_mv = voltage_mv;
+    NRF_LOG_INFO("🔋 Battery Updated: %d%% (%dmV), Power State: 0x%02X", battery_percent, voltage_mv, battery_power_state);
 }

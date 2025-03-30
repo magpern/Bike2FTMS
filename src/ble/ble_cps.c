@@ -1,6 +1,9 @@
 #include "ble_cps.h"
 #include "nrf_log.h"
 #include "app_error.h"
+#include <common_definitions.h>
+
+
 
 /**@brief Function for adding the Cycling Power Feature characteristic. */
 static uint32_t power_feature_char_add(ble_cps_t * p_cps) {
@@ -76,6 +79,7 @@ uint32_t ble_cps_init(ble_cps_t * p_cps) {
     // Assign Cycling Power Service UUID (0x1818)
     ble_uuid.type = BLE_UUID_TYPE_BLE;
     ble_uuid.uuid = BLE_UUID_CYCLING_POWER_SERVICE;
+    p_cps->conn_handle = BLE_CONN_HANDLE_INVALID;
 
     // Add CPS service to BLE stack
     NRF_LOG_INFO("Adding Cycling Power Service...");
@@ -100,14 +104,17 @@ uint32_t ble_cps_init(ble_cps_t * p_cps) {
     return NRF_SUCCESS;
 }
 
-/**@brief Function for sending Cycling Power Measurement notifications. */
+// 🧠 Deduplication logic with force-send after N identical values
+static uint16_t last_sent_power = 0xFFFF;
+static uint16_t _duplicate_counter = 0;
+
 void ble_cps_send_power_measurement(ble_cps_t * p_cps, uint16_t power_watts) {
     if (p_cps->conn_handle == BLE_CONN_HANDLE_INVALID) {
         NRF_LOG_WARNING("⚠️ Invalid connection handle. Cannot send CPS notification.");
         return;
     }
 
-    // Check if CCCD (Client Characteristic Configuration Descriptor) is enabled
+    // Check if notifications are enabled
     uint16_t cccd_value = 0;
     ble_gatts_value_t gatts_value = {
         .p_value = (uint8_t*)&cccd_value,
@@ -116,45 +123,56 @@ void ble_cps_send_power_measurement(ble_cps_t * p_cps, uint16_t power_watts) {
     };
 
     uint32_t err_code = sd_ble_gatts_value_get(
-        p_cps->conn_handle, 
-        p_cps->power_measurement_handles.cccd_handle, 
+        p_cps->conn_handle,
+        p_cps->power_measurement_handles.cccd_handle,
         &gatts_value
     );
 
-    if (err_code != NRF_SUCCESS || cccd_value != BLE_GATT_HVX_NOTIFICATION) {
-        //NRF_LOG_WARNING("⚠️ Notifications not enabled. Skipping CPS notification.");
+    if (err_code != NRF_SUCCESS || (cccd_value & BLE_GATT_HVX_NOTIFICATION) == 0) {
+        NRF_LOG_WARNING("⚠️ Notifications not enabled. Skipping CPS notification.");
         return;
     }
 
-    // Prepare Cycling Power Measurement Data
-    uint8_t encoded_data[4] = {0};  // 6 bytes: Flags (2B) + Instantaneous Power (2B) + Reserved (2B)
+    if (power_watts == last_sent_power) {
+        _duplicate_counter++;
+        if (_duplicate_counter < RESET_DUPLICATE_COUNTER_EVERY_N_MESSAGE) {
+            NRF_LOG_WARNING("⏩ CPS duplicate (%d W), skipping [%d/%d]", 
+                          power_watts, _duplicate_counter, RESET_DUPLICATE_COUNTER_EVERY_N_MESSAGE);
+            return;
+        } else {
+            NRF_LOG_INFO("🔁 CPS duplicate threshold reached. Forcing update: %d W", power_watts);
+            _duplicate_counter = 0;  // Reset counter after forced send
+        }
+    } else {
+        _duplicate_counter = 0;  // Reset if new value
+    }
 
-    // ✅ Flags (Set to 0, No optional fields used)
+    // Prepare data
+    uint8_t encoded_data[4] = {0};
     encoded_data[0] = 0x00;
     encoded_data[1] = 0x00;
-
-    // ✅ Instantaneous Power (Little-Endian, 2 bytes)
     encoded_data[2] = (power_watts & 0xFF);
     encoded_data[3] = (power_watts >> 8);
 
+    NRF_LOG_INFO("🚴 CPS Power Sent: %d W", power_watts);
 
-    // ✅ Log Debug Information
-    NRF_LOG_INFO("🚴 Sending Power Measurement: %d W", power_watts);
-
-    // ✅ Send BLE Notification
     ble_gatts_hvx_params_t hvx_params = {0};
     hvx_params.handle = p_cps->power_measurement_handles.value_handle;
     hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
     hvx_params.p_data = encoded_data;
 
     uint16_t len = sizeof(encoded_data);
-    hvx_params.p_len = &len;  
+    hvx_params.p_len = &len;
 
     err_code = sd_ble_gatts_hvx(p_cps->conn_handle, &hvx_params);
     if (err_code != NRF_SUCCESS) {
         NRF_LOG_ERROR("❌ Failed to send CPS notification: 0x%08X", err_code);
+        return;
     }
+
+    last_sent_power = power_watts;
 }
+
 
 
 

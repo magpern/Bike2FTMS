@@ -96,18 +96,18 @@ void ble_power_timer_handler(void * p_context) {
         nrf_gpio_pin_toggle(LED3_PIN);       // Toggle LED2
     #endif
 
-    if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID) {
+    if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID ) {
+        NRF_LOG_INFO("🚴 BLE Power queued: %d W", latest_power_watts);
         ble_cps_send_power_measurement(&m_cps, latest_power_watts);
-        NRF_LOG_INFO("🚴 BLE Power Sent: %d W", latest_power_watts);
     }
-
-    if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID) {
+    if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID) {    
         ble_ftms_data_t ftms_data = {
             .power_watts = latest_power_watts,
             .cadence_rpm = latest_cadence_rpm
         };
+
+        NRF_LOG_INFO("🚴 FTMS Power queed: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
         ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
-        NRF_LOG_INFO("🚴 FTMS Power Sent: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
     }
 }
 
@@ -278,6 +278,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+            m_ftms.conn_handle = m_conn_handle;
+            m_cps.conn_handle = m_conn_handle;
+            m_battery_service.conn_handle = m_conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
             break;
@@ -287,7 +290,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             err_code = bsp_indication_set(BSP_INDICATE_IDLE);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
-
+            m_ftms.conn_handle = m_conn_handle;
+            m_cps.conn_handle = m_conn_handle;
+            m_battery_service.conn_handle = m_conn_handle;
             // Keep ANT+ Running – Do NOT close the ANT+ channel!
             // Just restart BLE advertising
             start_ble_advertising();  
