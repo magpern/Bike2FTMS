@@ -54,7 +54,6 @@
 #define NRFX_SAADC_CONFIG_LP_MODE 0  // ✅ Disable low-power mode (faster readings)
 #define NRFX_SAADC_CONFIG_IRQ_PRIORITY 6  // ✅ Set SAADC IRQ priority
 
-
 // <h> Application 
 
 //==========================================================
@@ -4711,7 +4710,7 @@
 //==========================================================
 // <o> NRF_SDH_ANT_TOTAL_CHANNELS_ALLOCATED - Allocated ANT channels. 
 #ifndef NRF_SDH_ANT_TOTAL_CHANNELS_ALLOCATED
-#define NRF_SDH_ANT_TOTAL_CHANNELS_ALLOCATED 1
+#define NRF_SDH_ANT_TOTAL_CHANNELS_ALLOCATED 2
 #endif
 
 // <o> NRF_SDH_ANT_ENCRYPTED_CHANNELS - Encrypted ANT channels. 
