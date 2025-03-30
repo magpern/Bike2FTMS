@@ -107,7 +107,8 @@ void ble_power_timer_handler(void * p_context) {
         };
 
         NRF_LOG_INFO("🚴 FTMS Power queed: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
-        ble_ftms_send_indoor_bike_data(&m_ftms, &ftms_data);
+        // ✅ Send data to FTMS service (handles dedup, training state, notification)
+        ble_ftms_tick(&m_ftms, latest_power_watts, latest_cadence_rpm);
     }
 }
 

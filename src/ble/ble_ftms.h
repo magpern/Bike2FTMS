@@ -60,13 +60,6 @@ typedef struct {
 /**@brief Function for initializing the FTMS service. */
 uint32_t ble_ftms_init(ble_ftms_t * p_ftms);
 
-/**@brief Function for sending indoor bike data notifications. */
-void ble_ftms_send_indoor_bike_data(ble_ftms_t * p_ftms, ble_ftms_data_t * p_data);
-
-/**@brief Function for sending training status notifications. */
-void ble_ftms_send_training_status(ble_ftms_t * p_ftms, ble_ftms_training_status_t * p_status);
-
-/**@brief Function for sending machine status notifications. */
-void ble_ftms_send_machine_status(ble_ftms_t * p_ftms, ble_ftms_machine_status_t * p_status);
+void ble_ftms_tick(ble_ftms_t *p_ftms, uint16_t power_watts, uint8_t cadence_rpm);
 
 #endif // BLE_FTMS_H__
