@@ -236,6 +236,32 @@ static void ant_restart_timer_handler(void *p_context)
     NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
 }
 
+/**
+ * @brief Function to enter system deep sleep mode
+ * 
+ * @details Performs all necessary steps to prepare the system for deep sleep:
+ *          1. Turns off all LEDs
+ *          2. Enables reed sensor
+ *          3. Configures sense input for wake on reed switch
+ *          4. Enters system off state
+ */
+static void enter_deep_sleep(void)
+{
+    // Turn off all LEDs before sleep
+    #ifdef DEBUG
+    nrf_gpio_pin_set(LED3_PIN);
+    nrf_gpio_pin_set(LED4_PIN);
+    #endif
+
+    // Enable reed sensor for wake
+    reed_sensor_enable();
+
+    // Enter Deep Sleep
+    NRF_LOG_INFO("🛑 System entering deep sleep. Waiting for flywheel movement...");
+    nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+    sd_power_system_off();
+}
+
 static void ble_delay_timer_handler(void * p_context)
 {
     // If BLE is still not connected after 60s, proceed to shutdown
@@ -255,13 +281,7 @@ static void ble_delay_timer_handler(void * p_context)
             NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed.");
         }
 
-        // ✅ Enable reed switch before deep sleep
-        reed_sensor_enable();
-
-        // ✅ Enter Deep Sleep
-        NRF_LOG_INFO("🛑 System entering deep sleep. Waiting for flywheel movement...");
-        nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
-        sd_power_system_off();
+        enter_deep_sleep();
     }
     else
     {
@@ -403,13 +423,7 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                         NRF_LOG_WARNING("⚠️ ANT+ Channel was already closed or error.");
                     }
 
-                    // Enable your reed sensor or other hardware for wake
-                    reed_sensor_enable();
-
-                    // Enter Deep Sleep
-                    NRF_LOG_INFO("🛑 System entering deep sleep...");
-                    nrf_gpio_cfg_sense_input(REED_SWITCH_PIN, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
-                    sd_power_system_off();
+                    enter_deep_sleep();
                 }
             }
             break;

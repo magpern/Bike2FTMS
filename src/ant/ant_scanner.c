@@ -141,7 +141,7 @@ uint32_t ant_scanner_init(ant_device_callback_t callback)
     }
 
     // Close all channels first (ANT+ requirement for scanning)
-    for (uint8_t channel = 0; channel < 15; channel++)  // ANT+ supports up to 15 channels
+    for (uint8_t channel = 0; channel < 2; channel++)  // ANT+ supports up to 2 channels
     {
         err_code = sd_ant_channel_close(channel);
         if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_PARAM)
