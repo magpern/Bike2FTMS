@@ -373,6 +373,28 @@ flash_all: build_all merge_all
 erase:
 	nrfjprog -f nrf52 --eraseall
 
+APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
+DFU_SETTINGS   := dfu_settings.hex
+MERGED_APP_HEX := merged_app.hex
+
+flashapp: default
+	@echo "⚙️  Generating DFU settings with CRC..."
+	nrfutil settings generate --family NRF52840 \
+	  --application $(APP_HEX) \
+	  --application-version 1 \
+	  --bootloader-version 1 \
+	  --bl-settings-version 2 \
+	  --app-boot-validation CRC \
+	  $(DFU_SETTINGS)
+
+	@echo "🔀 Merging application + DFU settings..."
+	mergehex --merge $(APP_HEX) $(DFU_SETTINGS) --output $(MERGED_APP_HEX)
+
+	@echo "⚡ Flashing application only..."
+	nrfjprog -f nrf52 --program $(MERGED_APP_HEX) --sectorerase
+	nrfjprog -f nrf52 --reset
+	@echo "✅ Done: Application with DFU settings flashed."
+  
 SDK_CONFIG_FILE := ../config/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:

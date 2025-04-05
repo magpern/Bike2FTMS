@@ -108,6 +108,12 @@ int main(void)
     bsp_board_init(BSP_INIT_LEDS);
     bsp_board_led_on(BSP_BOARD_LED_0);  // Indicate bootloader start
 
+    // Initialize logging with RTT backend
+    ret = NRF_LOG_INIT(nrf_bootloader_dfu_timer_counter_get);
+    APP_ERROR_CHECK(ret);
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+    NRF_LOG_INFO("Logging initialized");
+
     NRF_LOG_INFO("Bootloader starting...");
     NRF_LOG_INFO("Protecting MBR and Bootloader regions");
 
@@ -121,11 +127,7 @@ int main(void)
     APP_ERROR_CHECK(ret);
     NRF_LOG_INFO("Bootloader region protected");
 
-    // Initialize logging with RTT backend
-    ret = NRF_LOG_INIT(nrf_bootloader_dfu_timer_counter_get);
-    APP_ERROR_CHECK(ret);
-    NRF_LOG_DEFAULT_BACKENDS_INIT();
-    NRF_LOG_INFO("Logging initialized");
+
 
     // Initialize timers and timeout
     ret = app_timer_init();
@@ -135,6 +137,10 @@ int main(void)
     ret = app_timer_create(&m_dfu_timeout_timer, APP_TIMER_MODE_SINGLE_SHOT, dfu_timeout_handler);
     APP_ERROR_CHECK(ret);
     NRF_LOG_INFO("DFU timeout timer created");
+
+    NRF_LOG_INFO("🧦 Bootloader running...");
+    NRF_LOG_FLUSH();
+    nrf_delay_ms(100);  // Give RTT log time to show
 
     NRF_LOG_INFO("Initializing DFU...");
     ret = nrf_bootloader_init(dfu_observer);

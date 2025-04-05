@@ -63,6 +63,23 @@
 #define APP_TIMER_CONFIG_SWI_NUMBER 0
 #define APP_TIMER_CONFIG_LOG_ENABLED 0
 
+#define NRF_LOG_BACKEND_RTT_ENABLED 1
+#define NRF_LOG_BACKEND_UART_ENABLED 0
+#define NRF_LOG_BACKEND_SERIAL_USES_RTT 1
+#define NRF_LOG_BACKEND_DEFAULT 1
+#define NRF_LOG_BACKEND_RTT_TEMP_BUFFER_SIZE 256
+// Required for RTT logging
+#define SEGGER_RTT_CONFIG_MAX_NUM_UP_BUFFERS       2
+#define SEGGER_RTT_CONFIG_MAX_NUM_DOWN_BUFFERS     2
+
+#define NRF_LOG_BACKEND_RTT_ENABLED                1
+#define NRF_LOG_BACKEND_RTT_TX_RETRY_CNT           3
+#define NRF_LOG_BACKEND_RTT_TX_RETRY_DELAY_MS      1
+
+// SEGGER RTT config - needed for RTT compilation
+#define SEGGER_RTT_CONFIG_BUFFER_SIZE_UP            512
+#define SEGGER_RTT_CONFIG_BUFFER_SIZE_DOWN          16
+#define SEGGER_RTT_CONFIG_DEFAULT_MODE              0  // 0 = NO_BLOCK_SKIP, 1 = NO_BLOCK_TRIM, 2 = BLOCK_IF_FIFO_FULL
 
 //==========================================================
 // <h> nrf_bootloader - Bootloader settings
