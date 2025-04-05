@@ -28,6 +28,9 @@
 #include <ble_conn_params.h>
 #include "ble_advdata.h"
 
+#include <stdint.h>
+#include <string.h>
+
 app_timer_id_t ble_shutdown_timer;
 bool ant_active = false;
 bool ble_started = false;
@@ -46,47 +49,74 @@ volatile uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
 uint8_t m_adv_handle;      /**< Advertising handle. */
 
-void ble_power_timer_handler(void * p_context);  // ✅ Function declaration
+// Power value buffer for moving average
+#define POWER_BUFFER_SIZE 12  // Store 12 values (3 seconds at 4 values per second)
+static uint16_t power_buffer[POWER_BUFFER_SIZE] = {0};
+static uint8_t power_buffer_index = 0;
+static bool power_buffer_initialized = false;
 
-uint16_t latest_power_watts = 0;  // Define and initialize
-uint8_t latest_cadence_rpm = 0;
+// Cadence value buffer for moving average
+#define CADENCE_BUFFER_SIZE 12  // Store 12 values (3 seconds at 4 values per second)
+static uint8_t cadence_buffer[CADENCE_BUFFER_SIZE] = {0};
+static uint8_t cadence_buffer_index = 0;
+static bool cadence_buffer_initialized = false;
 
-ble_ftms_t m_ftms;  // BLE FTMS Service Instance
-ble_cps_t m_cps; // BLE 0x1818 Cycling Power Service Instance
-
-void gap_params_init(void)
-{
-    uint32_t                err_code;
-    ble_gap_conn_params_t   gap_conn_params;
-    ble_gap_conn_sec_mode_t sec_mode;
-
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-
-    err_code = sd_ble_gap_device_name_set(&sec_mode,
-                        (const uint8_t *)ble_full_name,  // Loaded from flash
-                        strlen(ble_full_name));
-
-    APP_ERROR_CHECK(err_code);
-
-    err_code = sd_ble_gap_appearance_set(BLE_APPEARANCE_CYCLING_POWER_SENSOR);
-
-    memset(&gap_conn_params, 0, sizeof(gap_conn_params));
-
-    gap_conn_params.min_conn_interval = MIN_CONN_INTERVAL;
-    gap_conn_params.max_conn_interval = MAX_CONN_INTERVAL;
-    gap_conn_params.slave_latency     = SLAVE_LATENCY;
-    gap_conn_params.conn_sup_timeout  = CONN_SUP_TIMEOUT;
-
-    err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
-    APP_ERROR_CHECK(err_code);
+// Function to calculate average of power buffer
+static uint16_t calculate_power_average(void) {
+    uint32_t sum = 0;
+    uint8_t count = 0;
+    
+    for (uint8_t i = 0; i < POWER_BUFFER_SIZE; i++) {
+        if (power_buffer[i] > 0) {  // Only count non-zero values
+            sum += power_buffer[i];
+            count++;
+        }
+    }
+    
+    return count > 0 ? (uint16_t)(sum / count) : 0;
 }
 
-/**@brief Function for initializing the GATT module.
- */
-void gatt_init(void)
-{
-    ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, NULL);
-    APP_ERROR_CHECK(err_code);
+// Function to calculate average of cadence buffer
+static uint8_t calculate_cadence_average(void) {
+    uint32_t sum = 0;
+    uint8_t count = 0;
+    
+    for (uint8_t i = 0; i < CADENCE_BUFFER_SIZE; i++) {
+        if (cadence_buffer[i] > 0) {  // Only count non-zero values
+            sum += cadence_buffer[i];
+            count++;
+        }
+    }
+    
+    return count > 0 ? (uint8_t)(sum / count) : 0;
+}
+
+// Function to update power buffer with new value
+static void update_power_buffer(uint16_t new_power) {
+    power_buffer[power_buffer_index] = new_power;
+    power_buffer_index = (power_buffer_index + 1) % POWER_BUFFER_SIZE;
+    
+    if (!power_buffer_initialized) {
+        // Fill the buffer with the first value
+        for (uint8_t i = 0; i < POWER_BUFFER_SIZE; i++) {
+            power_buffer[i] = new_power;
+        }
+        power_buffer_initialized = true;
+    }
+}
+
+// Function to update cadence buffer with new value
+static void update_cadence_buffer(uint8_t new_cadence) {
+    cadence_buffer[cadence_buffer_index] = new_cadence;
+    cadence_buffer_index = (cadence_buffer_index + 1) % CADENCE_BUFFER_SIZE;
+    
+    if (!cadence_buffer_initialized) {
+        // Fill the buffer with the first value
+        for (uint8_t i = 0; i < CADENCE_BUFFER_SIZE; i++) {
+            cadence_buffer[i] = new_cadence;
+        }
+        cadence_buffer_initialized = true;
+    }
 }
 
 void ble_power_timer_handler(void * p_context) {
@@ -96,15 +126,18 @@ void ble_power_timer_handler(void * p_context) {
         nrf_gpio_pin_toggle(LED3_PIN);       // Toggle LED2
     #endif
 
+    // Calculate average power and cadence
+    uint16_t average_power = calculate_power_average();
+    uint8_t average_cadence = calculate_cadence_average();
+
     if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID ) {
-        NRF_LOG_INFO("🚴 BLE Power queued: %d W", latest_power_watts);
-        ble_cps_send_power_measurement(&m_cps, latest_power_watts);
+        NRF_LOG_INFO("🚴 BLE Power queued: %d W (avg)", average_power);
+        ble_cps_send_power_measurement(&m_cps, average_power);
     }
     if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID) {    
-
-        NRF_LOG_INFO("🚴 FTMS Power queed: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
+        NRF_LOG_INFO("🚴 FTMS Power queued: %d W (avg), Cadence: %d RPM (avg)", average_power, average_cadence);
         // ✅ Send data to FTMS service (handles dedup, training state, notification)
-        ble_ftms_tick(&m_ftms, latest_power_watts, latest_cadence_rpm);
+        ble_ftms_tick(&m_ftms, average_power, average_cadence);
     }
 }
 
@@ -528,7 +561,7 @@ void ble_power_timer_stop(void)
 {
     ret_code_t err_code = app_timer_stop(m_ble_power_timer);
 
-    // If it’s already stopped, it returns NRF_SUCCESS or NRF_ERROR_INVALID_STATE
+    // If it's already stopped, it returns NRF_SUCCESS or NRF_ERROR_INVALID_STATE
     if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_INVALID_STATE))
     {
         APP_ERROR_CHECK(err_code);
