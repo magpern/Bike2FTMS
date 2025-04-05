@@ -104,27 +104,46 @@ int main(void)
 {
     uint32_t ret;
 
+    // Initialize LEDs for visual feedback
+    bsp_board_init(BSP_INIT_LEDS);
+    bsp_board_led_on(BSP_BOARD_LED_0);  // Indicate bootloader start
+
+    NRF_LOG_INFO("Bootloader starting...");
+    NRF_LOG_INFO("Protecting MBR and Bootloader regions");
+
     nrf_bootloader_mbr_addrs_populate();
 
     ret = nrf_bootloader_flash_protect(0, MBR_SIZE);
     APP_ERROR_CHECK(ret);
+    NRF_LOG_INFO("MBR region protected");
+
     ret = nrf_bootloader_flash_protect(BOOTLOADER_START_ADDR, BOOTLOADER_SIZE);
     APP_ERROR_CHECK(ret);
+    NRF_LOG_INFO("Bootloader region protected");
 
-    (void) NRF_LOG_INIT(nrf_bootloader_dfu_timer_counter_get);
+    // Initialize logging with RTT backend
+    ret = NRF_LOG_INIT(nrf_bootloader_dfu_timer_counter_get);
+    APP_ERROR_CHECK(ret);
     NRF_LOG_DEFAULT_BACKENDS_INIT();
-
-    NRF_LOG_INFO("Bootloader: DFU start");
+    NRF_LOG_INFO("Logging initialized");
 
     // Initialize timers and timeout
     ret = app_timer_init();
     APP_ERROR_CHECK(ret);
+    NRF_LOG_INFO("Timers initialized");
 
     ret = app_timer_create(&m_dfu_timeout_timer, APP_TIMER_MODE_SINGLE_SHOT, dfu_timeout_handler);
     APP_ERROR_CHECK(ret);
+    NRF_LOG_INFO("DFU timeout timer created");
 
+    NRF_LOG_INFO("Initializing DFU...");
     ret = nrf_bootloader_init(dfu_observer);
     APP_ERROR_CHECK(ret);
+    NRF_LOG_INFO("DFU initialized, waiting for connection...");
+
+    // Start DFU timeout timer
+    start_dfu_timeout(DFU_INIT_TIMEOUT_MS);
+    NRF_LOG_INFO("DFU timeout timer started (%d ms)", DFU_INIT_TIMEOUT_MS);
 
     NRF_LOG_ERROR("Unexpected exit");
     NRF_LOG_FINAL_FLUSH();
