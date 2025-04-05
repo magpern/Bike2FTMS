@@ -334,7 +334,7 @@ merge_all:
 	  --application-version 1 \
 	  --bootloader-version 1 \
 	  --bl-settings-version 2 \
-    --app-boot-validation NO_VALIDATION \
+    --app-boot-validation VALIDATE_GENERATED_CRC \
 	  $(DFU_SETTINGS)
 
 	@echo Merging: app + softdevice + bootloader + dfu_settings
@@ -361,6 +361,7 @@ pkg: merge_all
 	  --softdevice $(SOFTDEVICE_HEX) \
 	  --sd-id $(SD_ID) \
 	  --sd-req $(SD_REQ) \
+    --key-file private_key.pem \
 	  $(PKG_NAME)
 	@echo Done! $(PKG_NAME)
 
@@ -384,7 +385,7 @@ flashapp: default
 	  --application-version 1 \
 	  --bootloader-version 1 \
 	  --bl-settings-version 2 \
-	  --app-boot-validation CRC \
+	  --app-boot-validation VALIDATE_GENERATED_CRC \
 	  $(DFU_SETTINGS)
 
 	@echo "🔀 Merging application + DFU settings..."
@@ -394,7 +395,7 @@ flashapp: default
 	nrfjprog -f nrf52 --program $(MERGED_APP_HEX) --sectorerase
 	nrfjprog -f nrf52 --reset
 	@echo "✅ Done: Application with DFU settings flashed."
-  
+
 SDK_CONFIG_FILE := ../config/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:
