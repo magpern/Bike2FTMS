@@ -14,10 +14,6 @@
 extern "C" {
 #endif
 
-// Buffer size configuration
-#define POWER_BUFFER_SIZE 12  // Store 12 values (3 seconds at 4 values per second)
-#define CADENCE_BUFFER_SIZE 12  // Store 12 values (3 seconds at 4 values per second)
-
 extern uint8_t m_adv_handle;
 extern void ble_power_timer_handler(void * p_context);
 extern ble_ftms_t m_ftms;  // BLE FTMS Service Instance
@@ -31,14 +27,6 @@ extern bool ant_active;
 extern bool ble_shutdown_timer_running;
 extern void ble_shutdown_timer_handler(void *p_context);
 extern void stop_ble_advertising(void);
-
-// Power buffer functions
-void update_power_buffer(uint16_t new_power);
-uint16_t calculate_power_average(void);
-
-// Cadence buffer functions
-void update_cadence_buffer(uint8_t new_cadence);
-uint8_t calculate_cadence_average(void);
 
 void start_ble_advertising(void);
 void softdevice_setup(void);

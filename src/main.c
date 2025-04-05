@@ -461,13 +461,11 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     {
         case ANT_BPWR_PAGE_16_UPDATED:
         {
+            //uint8_t event_count = p_profile->page_16.update_event_count;  // ✅ Extract counter
+            //NRF_LOG_INFO("🔄 ANT+ Power Event Count: %d", event_count);
             // ✅ Store latest power & cadence values (DO NOT send BLE yet)
-            uint16_t new_power = p_profile->page_16.instantaneous_power;
-            uint8_t new_cadence = p_profile->common.instantaneous_cadence;
-
-            // Update the power and cadence buffers with the new values
-            update_power_buffer(new_power);
-            update_cadence_buffer(new_cadence);
+            latest_power_watts = p_profile->page_16.instantaneous_power;
+            latest_cadence_rpm = p_profile->common.instantaneous_cadence;
 
             //NRF_LOG_INFO("🚴 Updated Power: %d W, Cadence: %d RPM (Stored)", latest_power_watts, latest_cadence_rpm);
             break;
