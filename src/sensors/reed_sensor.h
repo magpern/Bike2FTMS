@@ -5,7 +5,14 @@
 #include "nrf_drv_gpiote.h"
 
 // Define GPIO for reed switch
-#define REED_SWITCH_PIN 2  // P0.02 on nRF52840 DK
+// Using P0.17 as it's available on all target boards
+//
+// 🧩 Physical Pin Reference for P0.17:
+// - nRF52840 DK:          Pin 15 on Arduino header
+// - Adafruit Feather:     D10
+// - Seeed XIAO BLE:       D6
+//
+#define REED_SWITCH_PIN NRF_GPIO_PIN_MAP(0,17)  // Common pin P0.17 across DK, Feather, and XIAO
 
 // Define function pointer type for callback
 typedef void (*reed_sensor_callback_t)(void);
