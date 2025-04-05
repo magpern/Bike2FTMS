@@ -99,7 +99,7 @@ jobs:
             --application-version ${{ github.run_number }} \
             --bootloader-version 1 \
             --bl-settings-version 2 \
-            --app-boot-validation CRC \
+            --app-boot-validation VALIDATE_GENERATED_CRC \
             dfu_settings.hex
 
 #      - name: Merge firmware hex
