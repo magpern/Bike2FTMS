@@ -98,6 +98,32 @@
 
 #include "ant_scanner.h"
 
+// Add moving average buffer size
+#define MOVING_AVG_SIZE 12
+
+// Add moving average buffers and counters
+static uint16_t power_buffer[MOVING_AVG_SIZE] = {0};
+static uint8_t cadence_buffer[MOVING_AVG_SIZE] = {0};
+static uint8_t buffer_index = 0;
+static bool buffer_filled = false;
+
+// Add moving average calculation function
+static uint16_t calculate_moving_avg_power(void) {
+    uint32_t sum = 0;
+    for (uint8_t i = 0; i < MOVING_AVG_SIZE; i++) {
+        sum += power_buffer[i];
+    }
+    return (uint16_t)(sum / MOVING_AVG_SIZE);
+}
+
+static uint8_t calculate_moving_avg_cadence(void) {
+    uint32_t sum = 0;
+    for (uint8_t i = 0; i < MOVING_AVG_SIZE; i++) {
+        sum += cadence_buffer[i];
+    }
+    return (uint8_t)(sum / MOVING_AVG_SIZE);
+}
+
 static ant_bpwr_profile_t m_ant_bpwr; /* ANT Bike/Power profile instance */
 // Forward declaration of ANT BPWR event handler
 static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t event);
@@ -461,13 +487,32 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     {
         case ANT_BPWR_PAGE_16_UPDATED:
         {
-            //uint8_t event_count = p_profile->page_16.update_event_count;  // ✅ Extract counter
-            //NRF_LOG_INFO("🔄 ANT+ Power Event Count: %d", event_count);
-            // ✅ Store latest power & cadence values (DO NOT send BLE yet)
-            latest_power_watts = p_profile->page_16.instantaneous_power;
-            latest_cadence_rpm = p_profile->common.instantaneous_cadence;
+            // Store raw values in buffers
+            power_buffer[buffer_index] = p_profile->page_16.instantaneous_power;
+            cadence_buffer[buffer_index] = p_profile->common.instantaneous_cadence;
+            
+            // Update buffer index
+            buffer_index = (buffer_index + 1) % MOVING_AVG_SIZE;
+            if (buffer_index == 0) {
+                buffer_filled = true;
+            }
+            
+            // Calculate and store moving averages
+            if (buffer_filled) {
+                latest_power_watts = calculate_moving_avg_power();
+                latest_cadence_rpm = calculate_moving_avg_cadence();
+            } else {
+                // Use raw values until buffer is filled
+                latest_power_watts = p_profile->page_16.instantaneous_power;
+                latest_cadence_rpm = p_profile->common.instantaneous_cadence;
+            }
 
-            //NRF_LOG_INFO("🚴 Updated Power: %d W, Cadence: %d RPM (Stored)", latest_power_watts, latest_cadence_rpm);
+            NRF_LOG_INFO("🚴 Raw Power: %d W, Cadence: %d RPM", 
+                        p_profile->page_16.instantaneous_power, 
+                        p_profile->common.instantaneous_cadence);
+            NRF_LOG_INFO("📊 Smoothed Power: %d W, Cadence: %d RPM", 
+                        latest_power_watts, 
+                        latest_cadence_rpm);
             break;
         }
 
@@ -509,8 +554,14 @@ int main(void)
 {
 
     #ifdef DEBUG  // ✅ Only flash LED in debug mode
-    nrf_gpio_cfg_output(LED4_PIN);       // Set LED2 as output
+    nrf_gpio_cfg_output(LED1_PIN);       // Set LED2 as output
+    nrf_gpio_cfg_output(LED2_PIN);       // Set LED2 as output
     nrf_gpio_cfg_output(LED3_PIN);       // Set LED2 as output
+    nrf_gpio_cfg_output(LED4_PIN);       // Set LED2 as output
+    nrf_gpio_pin_set(LED1_PIN);          // Turn off LED2
+    nrf_gpio_pin_set(LED2_PIN);          // Turn off LED2
+    nrf_gpio_pin_set(LED3_PIN);          // Turn off LED2
+    nrf_gpio_pin_set(LED4_PIN);          // Turn off LED2
     #endif
 
     uint32_t err_code;
