@@ -27,6 +27,7 @@
 #include "device_info.h"  
 #include <ble_conn_params.h>
 #include "ble_advdata.h"
+#include "nrf_delay.h"
 
 app_timer_id_t ble_shutdown_timer;
 bool ant_active = false;
@@ -359,21 +360,52 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     }
 }
 
+static void advertising_failed_handler(uint32_t err_code)
+{
+    NRF_LOG_ERROR("🔁 Advertising failed. Restarting device... Error: 0x%08X", err_code);
+
+    // Optional: set a GPREGRET reason for debugging after reset
+    //NRF_POWER->GPREGRET = 0xAD;  // 0xAD = Advertising failure (custom code)
+
+    // Give time for logs to flush
+    nrf_delay_ms(100);
+
+    NVIC_SystemReset();  // 🔄 Soft reset the device
+}
+
 /**@brief Start advertising.
  */
 static void advertising_start(void)
 {
     uint32_t err_code;
+    int retry_attempts = 3;
 
-    err_code = sd_ble_gap_adv_start(m_adv_handle, APP_BLE_CONN_CFG_TAG);
-    if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE)
-    {
-        APP_ERROR_HANDLER(err_code);
+    for (int i = 0; i < retry_attempts; i++) {
+        err_code = sd_ble_gap_adv_start(m_adv_handle, APP_BLE_CONN_CFG_TAG);
+        if (err_code == NRF_SUCCESS) {
+            NRF_LOG_INFO("✅ BLE Advertising started on attempt %d", i + 1);
+            ble_started = true;  // Set flag to indicate BLE is started
+            break;
+        } else {
+            NRF_LOG_WARNING("⚠️ Advertising attempt %d failed: 0x%08X", i + 1, err_code);
+            nrf_delay_ms(50);  // Let SoftDevice breathe
+            ble_started = false;  // Reset flag to indicate BLE is not started
+        }
+    }
+
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_ERROR("❌ BLE Advertising failed after %d attempts", retry_attempts);
+        // 👉 You can call a custom error handler here or signal upper layers
+        advertising_failed_handler(err_code);  // For example
+        return;
     }
 
     err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
-    APP_ERROR_CHECK(err_code);
+    if (err_code != NRF_SUCCESS) {
+        NRF_LOG_WARNING("⚠️ LED indication failed: 0x%08X", err_code);
+    }
 }
+
 
 
 void start_ble_advertising(void)

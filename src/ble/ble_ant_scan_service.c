@@ -111,7 +111,9 @@ static void send_ble_name(void) {
 
     ret_code_t err_code = sd_ble_gatts_hvx(m_conn_handle, &params);
     if (err_code == NRF_SUCCESS) {
-        NRF_LOG_INFO("📡 Sent BLE Name: %.*s", name_length, m_ble_name);
+        char safe_name[BLE_NAME_MAX_LEN + 1] = {0};
+        memcpy(safe_name, m_ble_name, name_length);
+        NRF_LOG_INFO("📡 Sent BLE Name: %s", safe_name);
     } else {
         NRF_LOG_WARNING("⚠️ Failed to send BLE name: 0x%08X", err_code);
     }
@@ -173,8 +175,6 @@ static void on_write(ble_evt_t const *p_ble_evt) {
                 scanning_active = false;
                 num_found_devices = 0;
                 ant_scanner_stop();  // ✅ Stop scanning
-                nrf_delay_ms(100);  // Optional: give time to flush logs or stop peripherals
-                NVIC_SystemReset(); // 🔄 Soft reset the device
                 break;
         
             case 0x03:  // 📡 Get BLE Name
@@ -190,6 +190,11 @@ static void on_write(ble_evt_t const *p_ble_evt) {
             case 0x05:  // 🔄 Enter DFU Mode
                 NRF_LOG_INFO("🔄 Entering DFU Mode (Command: 0x05)");
                 enter_dfu_mode();  // ✅ Enter DFU mode
+                break;
+            case 0x06:  // 🔄 Reboot Device
+                NRF_LOG_INFO("🔄 Rebooting Device (Command: 0x06)");
+                nrf_delay_ms(100);  // ✅ Delay to ensure all logs are sent before reboot
+                NVIC_SystemReset();  // ✅ Trigger a system reset
                 break;
         
             default:
