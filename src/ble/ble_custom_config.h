@@ -5,7 +5,7 @@
 #include "ble.h"
 #include "ble_srv_common.h"
 #define MAX_BLE_FULL_NAME_LEN 15  // Includes custom name + "_12345"
-#define DEFAULT_BLE_NAME       "SatsBike"
+#define DEFAULT_BLE_NAME       "BikeBLE"
 #define BLE_NAME_MAX_LEN       8
 #define DEFAULT_ANT_DEVICE_ID  0 //18465  
 
