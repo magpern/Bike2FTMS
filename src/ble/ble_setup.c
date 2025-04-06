@@ -90,7 +90,6 @@ void gatt_init(void)
 }
 
 void ble_power_timer_handler(void * p_context) {
-    NRF_LOG_INFO("🚴 Timer Fired");
 
     #ifdef DEBUG  // ✅ Only flash LED in debug mode
         nrf_gpio_pin_toggle(LED3_PIN);       // Toggle LED2

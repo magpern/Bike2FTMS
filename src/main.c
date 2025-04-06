@@ -507,10 +507,10 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
                 latest_cadence_rpm = p_profile->common.instantaneous_cadence;
             }
 
-            NRF_LOG_INFO("🚴 Raw Power: %d W, Cadence: %d RPM", 
+            NRF_LOG_DEBUG("🚴 Raw Power: %d W, Cadence: %d RPM", 
                         p_profile->page_16.instantaneous_power, 
                         p_profile->common.instantaneous_cadence);
-            NRF_LOG_INFO("📊 Smoothed Power: %d W, Cadence: %d RPM", 
+            NRF_LOG_DEBUG("📊 Smoothed Power: %d W, Cadence: %d RPM", 
                         latest_power_watts, 
                         latest_cadence_rpm);
             break;

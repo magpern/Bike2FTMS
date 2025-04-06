@@ -14,6 +14,7 @@
 //#include <nrf_bootloader.h>
 #include <nrf_bootloader_info.h>
 #include "nrf_power.h"
+#include "nrf_delay.h"
 
 #define ANT_LIB_CONFIG_MESG_OUT_FIELDS_ENABLE  0x01
 #define ANT_LIB_CONFIG_RSSI_MASK               0xC0
@@ -155,35 +156,42 @@ static void on_write(ble_evt_t const *p_ble_evt) {
         switch (command) {
             case 0x01:  // 🔍 Start or Restart Scanning
                 NRF_LOG_INFO("📡 BLE Triggered ANT+ Scan (Restarting)");
-
+        
                 // ✅ Clear the list of found devices
                 memset(found_devices, 0, sizeof(found_devices));
                 num_found_devices = 0;
-
+        
                 ant_scanner_init(ant_scan_callback);  // ✅ Initialize the scanner
-                ant_scanner_start();  // ✅ Start scanning
-                break;
-
-            case 0x02:  // 🛑 Stop Scan
-            case 0x03:  // 📡 Get BLE Name
-            case 0x04:  // 🔢 Get ANT+ Device ID
-                NRF_LOG_INFO("🛑 BLE Stopping Scan (Command: 0x%02X)", command);
-                scanning_active = false;
-                num_found_devices = 0;
-                
-                ant_scanner_stop();  // ✅ Stop scanning
-
-                if (command == 0x03) {
-                    send_ble_name();
-                } else if (command == 0x04) {
-                    send_current_ant_device_id();
+                {
+                    uint32_t res = ant_scanner_start();  // ✅ Start scanning
+                    NRF_LOG_INFO("ANT Scanner started with result: %d", res);
                 }
                 break;
+        
+            case 0x02:  // 🛑 Stop Scan
+                NRF_LOG_INFO("🛑 BLE Stopping Scan (0x02)");
+                scanning_active = false;
+                num_found_devices = 0;
+                ant_scanner_stop();  // ✅ Stop scanning
+                nrf_delay_ms(100);  // Optional: give time to flush logs or stop peripherals
+                NVIC_SystemReset(); // 🔄 Soft reset the device
+                break;
+        
+            case 0x03:  // 📡 Get BLE Name
+                NRF_LOG_INFO("📡 BLE Request: Get BLE Name (0x03)");
+                send_ble_name();
+                break;
+        
+            case 0x04:  // 🔢 Get ANT+ Device ID
+                NRF_LOG_INFO("🔢 BLE Request: Get ANT+ Device ID (0x04)");
+                send_current_ant_device_id();
+                break;
+        
             case 0x05:  // 🔄 Enter DFU Mode
-                NRF_LOG_INFO("🔄 Entering DFU Mode (Command: 0x%02X)", command);
+                NRF_LOG_INFO("🔄 Entering DFU Mode (Command: 0x05)");
                 enter_dfu_mode();  // ✅ Enter DFU mode
                 break;
-
+        
             default:
                 NRF_LOG_WARNING("⚠️ Unknown Command: 0x%02X", command);
                 break;

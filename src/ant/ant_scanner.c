@@ -25,7 +25,7 @@ static ant_device_callback_t m_device_callback = NULL;
 static ant_device_t m_found_devices[MAX_ANT_DEVICES];
 static uint8_t m_num_found_devices = 0;
 static bool m_scanning_active = false;
-static APP_TIMER_DEF(m_scan_timer);
+APP_TIMER_DEF(m_scan_timer);
 static bool m_timer_created = false;
 
 // Forward declarations
@@ -141,7 +141,7 @@ uint32_t ant_scanner_init(ant_device_callback_t callback)
     }
 
     // Close all channels first (ANT+ requirement for scanning)
-    for (uint8_t channel = 0; channel < 2; channel++)  // ANT+ supports up to 2 channels
+    for (uint8_t channel = 0; channel < 5; channel++)  // ANT+ supports up to 2 channels
     {
         err_code = sd_ant_channel_close(channel);
         if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_PARAM)
@@ -149,7 +149,6 @@ uint32_t ant_scanner_init(ant_device_callback_t callback)
             NRF_LOG_WARNING("Failed to close channel (Probably expected) %d: 0x%08X", channel, err_code);
         }
     }
-
     // Set ANT+ Network Key
     err_code = sd_ant_network_address_set(ANTPLUS_NETWORK_NUMBER, ANT_PLUS_NETWORK_KEY);
     if (err_code != NRF_SUCCESS)
