@@ -25,6 +25,8 @@ static ant_device_callback_t m_device_callback = NULL;
 static ant_device_t m_found_devices[MAX_ANT_DEVICES];
 static uint8_t m_num_found_devices = 0;
 static bool m_scanning_active = false;
+static bool m_channels_closing = false;
+static uint8_t m_channels_to_close = 0;
 APP_TIMER_DEF(m_scan_timer);
 static bool m_timer_created = false;
 
@@ -82,6 +84,39 @@ static void add_device(uint16_t device_id, int8_t rssi)
 /**@brief ANT event handler for wildcard scan channel */
 static void scan_ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
+    if (m_channels_closing)
+    {
+        if (p_ant_evt->event == EVENT_CHANNEL_CLOSED)
+        {
+            m_channels_to_close--;
+            NRF_LOG_INFO("Channel %u closed. %u channels remaining", p_ant_evt->channel, m_channels_to_close);
+            
+            if (m_channels_to_close == 0)
+            {
+                m_channels_closing = false;
+                // All channels are closed, now we can start scanning
+                uint32_t err_code = sd_ant_rx_scan_mode_start(0);
+                if (err_code != NRF_SUCCESS)
+                {
+                    NRF_LOG_ERROR("Failed to start scan mode: 0x%08X", err_code);
+                    return;
+                }
+                
+                // Start scan timeout timer
+                err_code = app_timer_start(m_scan_timer, APP_TIMER_TICKS(MAX_SCAN_DURATION_MS), NULL);
+                if (err_code != NRF_SUCCESS)
+                {
+                    NRF_LOG_ERROR("Failed to start scan timer: 0x%08X", err_code);
+                    return;
+                }
+
+                m_scanning_active = true;
+                NRF_LOG_INFO("ANT Scanner: Started scanning");
+            }
+        }
+        return;
+    }
+
     if (p_ant_evt->channel != SCAN_CHANNEL_NUMBER)
     {
         return;
@@ -196,7 +231,7 @@ uint32_t ant_scanner_init(ant_device_callback_t callback)
 
 uint32_t ant_scanner_start(void)
 {
-    if (m_scanning_active)
+    if (m_scanning_active || m_channels_closing)
     {
         return NRF_ERROR_INVALID_STATE;
     }
@@ -207,24 +242,46 @@ uint32_t ant_scanner_start(void)
     m_num_found_devices = 0;
     memset(m_found_devices, 0, sizeof(m_found_devices));
 
-    // Start background scanning mode
-    err_code = sd_ant_rx_scan_mode_start(0); //this is not the channel, it is sync message true/false   
-    if (err_code != NRF_SUCCESS)
+    // Close all channels first (ANT+ requirement for scanning)
+    m_channels_closing = true;
+    m_channels_to_close = 0;
+    
+    for (uint8_t channel = 0; channel < 5; channel++)  // ANT+ supports up to 2 channels
     {
-        return err_code;
+        err_code = sd_ant_channel_close(channel);
+        if (err_code == NRF_SUCCESS)
+        {
+            m_channels_to_close++;
+        }
+        else if (err_code != NRF_ERROR_INVALID_PARAM)
+        {
+            NRF_LOG_WARNING("Failed to close channel %d: 0x%08X", channel, err_code);
+        }
     }
 
-    // Start scan timeout timer
-    err_code = app_timer_start(m_scan_timer, APP_TIMER_TICKS(MAX_SCAN_DURATION_MS), NULL);
-    if (err_code != NRF_SUCCESS)
+    if (m_channels_to_close == 0)
     {
-        err_code = sd_ant_channel_close(SCAN_CHANNEL_NUMBER);  // Stop scanning
-        APP_ERROR_CHECK(err_code);
-        return err_code;
+        // No channels needed closing, start scanning immediately
+        m_channels_closing = false;
+        err_code = sd_ant_rx_scan_mode_start(0);
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+
+        // Start scan timeout timer
+        err_code = app_timer_start(m_scan_timer, APP_TIMER_TICKS(MAX_SCAN_DURATION_MS), NULL);
+        if (err_code != NRF_SUCCESS)
+        {
+            err_code = sd_ant_channel_close(SCAN_CHANNEL_NUMBER);  // Stop scanning
+            APP_ERROR_CHECK(err_code);
+            return err_code;
+        }
+
+        m_scanning_active = true;
+        NRF_LOG_INFO("ANT Scanner: Started scanning");
     }
 
-    m_scanning_active = true;
-    NRF_LOG_INFO("ANT Scanner: Started scanning");
     return NRF_SUCCESS;
 }
 
