@@ -103,4 +103,4 @@ make flash
 
 ---
 
-✅ **This project is near completion, ready for acceptance testing!**
+✅ **This project is near completion, ready for pilot testing!**
