@@ -98,7 +98,7 @@ make flash
 
 ## **Next Steps**
 - 🚀 **Prepare for final acceptance testing.**
-- 🔬 **Measure power consumption and optimize sleep modes.**
+- 🔬 **Measure power consumption and optimize sleep modes. **
 - 📡 **Test real-world BLE & ANT+ performance.**
 
 ---
