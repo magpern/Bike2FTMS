@@ -1,24 +1,25 @@
 name: Build and Create DFU
 
 on:
-  workflow_dispatch:  # 👈 Manual trigger enabled
-
+  workflow_dispatch:
   push:
     tags:
-      - '*'  # Only run on tags
+      - '*'
     branches-ignore:
       - '**'
-
   pull_request:
     branches: [ main ]
 
 permissions:
-  contents: write  
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     if: '!contains(github.event.head_commit.message, ''skip ci'') && !contains(github.event.head_commit.message, ''skip release'')'
+    strategy:
+      matrix:
+        board: [promicro, pca10056]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,11 +50,11 @@ jobs:
 
       - name: Install mergehex from Nordic CLI tools
         run: |
-            wget https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
-            tar -xzf nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
-            sudo cp nrf-command-line-tools/bin/mergehex /usr/local/bin/
-            sudo chmod +x /usr/local/bin/mergehex
-        
+          wget https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
+          tar -xzf nrf-command-line-tools-10.24.2_linux-amd64.tar.gz
+          sudo cp nrf-command-line-tools/bin/mergehex /usr/local/bin/
+          sudo chmod +x /usr/local/bin/mergehex
+
       - name: Set up environment variables
         run: |
           echo "NRF5_SDK_ROOT=/opt/nRF5_SDK_17.1.0_ddde560" >> $GITHUB_ENV
@@ -74,85 +75,65 @@ jobs:
 
       - name: Inject ANT license key
         run: |
-          sed -i 's|#define ANT_LICENSE_KEY .*|#define ANT_LICENSE_KEY "'"${{ secrets.ANT_LICENSE_KEY }}"'"|' \
-          /opt/nRF5_SDK_17.1.0_ddde560/components/softdevice/s340/headers/nrf_sdm.h
+          sed -i 's|#define ANT_LICENSE_KEY .*|#define ANT_LICENSE_KEY "${{ secrets.ANT_LICENSE_KEY }}"|' \
+            /opt/nRF5_SDK_17.1.0_ddde560/components/softdevice/s340/headers/nrf_sdm.h
 
       - name: Build bootloader
         run: |
-            cd bootloader/bootloader_s340/armgcc
-            make -j4 DEBUG=0 OPT=-Os
+          cd bootloader/bootloader_s340/armgcc
+          make -j4 DEBUG=0 OPT=-Os BOARD=${{ matrix.board }}
 
-      - name: Build application
+      - name: Build application for ${{ matrix.board }}
         run: |
           cd pca10056/s340/armgcc
-          make -j4 RELEASE=1 OPT=-O3 VERSION="${{ steps.version.outputs.version }}" CI=1
+          make -j4 RELEASE=1 OPT=-O3 VERSION="${{ steps.version.outputs.version }}" CI=1 BOARD=${{ matrix.board }}
 
       - name: Write DFU private key to disk
         run: |
           echo "${{ secrets.DFU_PRIVATE_KEY }}" > private_key.pem
 
-      - name: Generate DFU settings
+      - name: Generate DFU settings for ${{ matrix.board }}
         run: |
           cd pca10056/s340/armgcc
           nrfutil settings generate --family NRF52840 \
-            --application _build/nrf52840_xxaa.hex \
+            --application _build_${{ matrix.board }}/nrf52840_xxaa.hex \
             --application-version ${{ github.run_number }} \
             --bootloader-version 1 \
             --bl-settings-version 2 \
             --app-boot-validation VALIDATE_GENERATED_CRC \
-            dfu_settings.hex
+            dfu_settings_${{ matrix.board }}.hex
 
-#      - name: Merge firmware hex
-#        run: |
-#          cd pca10056/s340/armgcc
-#          mergehex --merge \
-#            ../hex/ANT_s340_nrf52_7.0.1.hex \
-#            ../../../bootloader/bootloader_s340/armgcc/_build/satsbike_bootloader_s340.hex \
-#            _build/nrf52840_xxaa.hex \
-#            dfu_settings.hex \
-#            --output merged_firmware.hex
-        
-      - name: Merge firmware hex
+      - name: Merge firmware hex for ${{ matrix.board }}
         run: |
           cd pca10056/s340/armgcc
           mergehex --merge \
-            _build/nrf52840_xxaa.hex \
-            dfu_settings.hex \
-            --output merged_firmware.hex
+            _build_${{ matrix.board }}/nrf52840_xxaa.hex \
+            dfu_settings_${{ matrix.board }}.hex \
+            --output merged_firmware_${{ matrix.board }}.hex
 
-      - name: Create DFU package
+      - name: Create DFU package for ${{ matrix.board }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           nrfutil pkg generate --hw-version 52 \
-            --application pca10056/s340/armgcc/_build/nrf52840_xxaa.hex \
+            --application pca10056/s340/armgcc/_build_${{ matrix.board }}/nrf52840_xxaa.hex \
             --application-version ${{ github.run_number }} \
             --sd-req 0xCE \
             --key-file private_key.pem \
-            satsbike_dfu-${VERSION}.zip
-            
-      - name: Upload artifacts
+            satsbike_dfu-${{ matrix.board }}-${VERSION}.zip
+
+      - name: Upload artifacts for ${{ matrix.board }}
         uses: actions/upload-artifact@v4
         with:
-          name: satsbike-firmware
+          name: satsbike-${{ matrix.board }}-firmware
           path: |
-            pca10056/s340/armgcc/_build/nrf52840_xxaa.hex
-            pca10056/s340/armgcc/_build/nrf52840_xxaa.bin
-            pca10056/s340/armgcc/merged_firmware.hex
-            satsbike_dfu-${{ steps.version.outputs.version }}.zip
+            satsbike_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
           retention-days: 7
-
-      - name: Show firmware size
-        run: |
-          echo "🚀 Firmware size:"
-          stat --printf="%n: %s bytes\n" satsbike_dfu.zip || echo "Not found"
-          stat --printf="%n: %s bytes\n" pca10056/s340/armgcc/merged_firmware.hex || echo "Not found"
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            pca10056/s340/armgcc/merged_firmware.hex
-            satsbike_dfu-${{ steps.version.outputs.version }}.zip
+            satsbike_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
