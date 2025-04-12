@@ -1,6 +1,14 @@
 PROJECT_NAME     := ble_ant_app_FTMS_pca10056_s340
 TARGETS          := nrf52840_xxaa
-OUTPUT_DIRECTORY := _build
+OUTPUT_DIRECTORY := _build_$(BOARD)
+BOARD ?= promicro
+
+ifeq ($(BOARD),promicro)
+  BOARD_UPPER := PROMICRO
+endif
+ifeq ($(BOARD),pca10056)
+  BOARD_UPPER := PCA10056
+endif
 
 SDK_ROOT := $(NRF5_SDK_ROOT)
 PROJ_DIR := $(abspath ../../../)
@@ -17,7 +25,7 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_default_backends.c \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_frontend.c \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_str_formatter.c \
-  $(SDK_ROOT)/components/boards/boards.c \
+  $(PROJ_DIR)/boards/boards.c \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
   $(SDK_ROOT)/components/libraries/button/app_button.c \
   $(SDK_ROOT)/components/libraries/util/app_error.c \
@@ -150,7 +158,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/atomic_fifo \
   ../config \
   $(SDK_ROOT)/components/libraries/atomic \
-  $(SDK_ROOT)/components/boards \
   $(SDK_ROOT)/components/libraries/memobj \
   $(SDK_ROOT)/components/libraries/atomic_flags \
   $(SDK_ROOT)/components/ant/ant_key_manager \
@@ -187,8 +194,8 @@ INC_FOLDERS += \
   $(PROJ_DIR)/src/sensors \
   $(PROJ_DIR)/src/utils \
   $(PROJ_DIR)/src/nfc \
-  $(PROJ_DIR)/src/includes
-
+  $(PROJ_DIR)/src/includes \
+  $(PROJ_DIR)/boards \
 
 
 # Libraries common to all targets
@@ -204,7 +211,7 @@ DEBUG = 1  # Force debug build
 CFLAGS += $(OPT)
 CFLAGS += -DAPP_TIMER_V2
 CFLAGS += -DAPP_TIMER_V2_RTC1_ENABLED
-CFLAGS += -DBOARD_PCA10056
+CFLAGS += -DBOARD_$(BOARD_UPPER)
 CFLAGS += -DCONFIG_GPIO_AS_PINRESET
 CFLAGS += -DFLOAT_ABI_HARD
 CFLAGS += -DNRF52840_XXAA
@@ -249,7 +256,7 @@ ASMFLAGS += -mthumb -mabi=aapcs
 ASMFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ASMFLAGS += -DAPP_TIMER_V2
 ASMFLAGS += -DAPP_TIMER_V2_RTC1_ENABLED
-ASMFLAGS += -DBOARD_PCA10056
+ASMFLAGS += -DBOARD_$(BOARD_UPPER)
 ASMFLAGS += -DCONFIG_GPIO_AS_PINRESET
 ASMFLAGS += -DFLOAT_ABI_HARD
 ASMFLAGS += -DNRF52840_XXAA
@@ -321,9 +328,9 @@ flash_softdevice:
 	nrfjprog -f nrf52 --reset
 
 SOFTDEVICE_HEX := $(SDK_ROOT)/components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex
-BOOTLOADER_HEX := ../../../bootloader/bootloader_s340/armgcc/_build/satsbike_bootloader_s340.hex
+BOOTLOADER_HEX := ../../../bootloader/bootloader_s340/armgcc/_build_$(BOARD)/satsbike_bootloader.hex
 APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
-MERGED_HEX     := merged_firmware.hex
+MERGED_HEX     := merged_firmware_$(BOARD).hex
 DFU_SETTINGS   := dfu_settings.hex
 
 #change this VALIDATE_GENERATED_CRC
@@ -347,7 +354,7 @@ merge_all:
 
 	@echo Done! $(MERGED_HEX)
 
-PKG_NAME      := satsbike_dfu.zip
+PKG_NAME       := satsbike_$(BOARD)_dfu.zip
 HW_VERSION    := 52
 APP_VERSION   := 1
 SD_ID         := 0xCE  # Use actual value if SoftDevice has a known ID
@@ -376,7 +383,7 @@ erase:
 
 APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
 DFU_SETTINGS   := dfu_settings.hex
-MERGED_APP_HEX := merged_app.hex
+MERGED_APP_HEX := merged_app_$(BOARD).hex
 
 flashapp: default
 	@echo "⚙️  Generating DFU settings with CRC..."

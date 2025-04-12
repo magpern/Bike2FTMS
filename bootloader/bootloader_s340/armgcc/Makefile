@@ -1,6 +1,15 @@
-PROJECT_NAME     := satsbike_bootloader_s340
-TARGETS          := satsbike_bootloader_s340
-OUTPUT_DIRECTORY := _build
+PROJECT_NAME     := satsbike_bootloader
+TARGETS          := satsbike_bootloader
+OUTPUT_DIRECTORY := _build_$(BOARD)
+
+BOARD ?= promicro
+
+ifeq ($(BOARD),promicro)
+  BOARD_UPPER := PROMICRO
+endif
+ifeq ($(BOARD),pca10056)
+  BOARD_UPPER := PCA10056
+endif
 
 SDK_ROOT := $(NRF5_SDK_ROOT)
 PROJ_DIR := $(abspath ../../)
@@ -37,7 +46,7 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/crypto/backend/cc310_bl/cc310_bl_backend_hash.c \
   $(SDK_ROOT)/components/libraries/crypto/backend/cc310_bl/cc310_bl_backend_init.c \
   $(SDK_ROOT)/components/libraries/crypto/backend/cc310_bl/cc310_bl_backend_shared.c \
-  $(SDK_ROOT)/components/boards/boards.c \
+  ../../../boards/boards.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_soc.c \
@@ -121,7 +130,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/external/nrf_oberon \
   $(SDK_ROOT)/components/libraries/strerror \
   $(SDK_ROOT)/components/libraries/crypto/backend/mbedtls \
-  $(SDK_ROOT)/components/boards \
   $(SDK_ROOT)/components/libraries/crypto/backend/cc310 \
   $(SDK_ROOT)/components/libraries/bootloader \
   $(SDK_ROOT)/components/softdevice/s340/headers \
@@ -146,7 +154,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/ringbuf \
   $(SDK_ROOT)/components/libraries/timer \
   $(SDK_ROOT)/external/segger_rtt \
-
+  ../../../boards \
 # Libraries common to all targets
 LIB_FILES += \
   $(SDK_ROOT)/external/nrf_oberon/lib/cortex-m4/hard-float/liboberon_3.0.8.a \
@@ -160,7 +168,7 @@ OPT = -Os -g3
 # C flags common to all targets
 CFLAGS += $(OPT)
 CFLAGS += -DBLE_STACK_SUPPORT_REQD
-CFLAGS += -DBOARD_PCA10056
+CFLAGS += -DBOARD_$(BOARD_UPPER)
 CFLAGS += -DCONFIG_GPIO_AS_PINRESET
 CFLAGS += -DFLOAT_ABI_HARD
 CFLAGS += -DNRF52840_XXAA
@@ -187,7 +195,7 @@ ASMFLAGS += -mcpu=cortex-m4
 ASMFLAGS += -mthumb -mabi=aapcs
 ASMFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ASMFLAGS += -DBLE_STACK_SUPPORT_REQD
-ASMFLAGS += -DBOARD_PCA10056
+ASMFLAGS += -DBOARD_$(BOARD_UPPER)
 ASMFLAGS += -DCONFIG_GPIO_AS_PINRESET
 ASMFLAGS += -DFLOAT_ABI_HARD
 ASMFLAGS += -DNRF52840_XXAA
@@ -208,8 +216,8 @@ LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs
 
-satsbike_bootloader_s340: CFLAGS += -D__HEAP_SIZE=0
-satsbike_bootloader_s340: ASMFLAGS += -D__HEAP_SIZE=0
+satsbike_bootloader: CFLAGS += -D__HEAP_SIZE=0
+satsbike_bootloader: ASMFLAGS += -D__HEAP_SIZE=0
 
 # Add standard libraries at the very end of the linker input, after all objects
 # that may need symbols provided by these libraries.
@@ -219,12 +227,12 @@ LIB_FILES += -lc -lnosys -lm
 .PHONY: default help
 
 # Default target - first one defined
-default: satsbike_bootloader_s340
+default: satsbike_bootloader
 
 # Print all targets that can be built
 help:
 	@echo following targets are available:
-	@echo		satsbike_bootloader_s340
+	@echo		satsbike_bootloader
 	@echo		flash_softdevice
 	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
@@ -243,8 +251,8 @@ info:
 
 # Flash the program
 flash: default
-	@echo Flashing: $(OUTPUT_DIRECTORY)/satsbike_bootloader_s340.hex
-	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/satsbike_bootloader_s340.hex --sectorerase
+	@echo Flashing: $(OUTPUT_DIRECTORY)/satsbike_bootloader.hex
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/satsbike_bootloader.hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
 # Flash softdevice
