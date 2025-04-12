@@ -95,8 +95,8 @@
 #include "ble_ant_scan_service.h"
 #include "ant_interface.h"
 #include "ant_parameters.h"
-
 #include "ant_scanner.h"
+#include "boards.h"
 
 // Add moving average buffer size
 #define MOVING_AVG_SIZE 12
@@ -275,8 +275,8 @@ static void enter_deep_sleep(void)
 {
     // Turn off all LEDs before sleep
     #ifdef DEBUG
-    nrf_gpio_pin_set(LED3_PIN);
-    nrf_gpio_pin_set(LED4_PIN);
+    nrf_gpio_pin_set(LED_1);
+    nrf_gpio_pin_set(LED_4);
     #endif
 
     // Enable reed sensor for wake
@@ -357,7 +357,7 @@ static void start_device_shutdown_delay_timer(void)
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
 #ifdef DEBUG
-    nrf_gpio_pin_toggle(LED4_PIN);
+    nrf_gpio_pin_toggle(LED_4);
 #endif
 
     // ✅ Ignore events from any channel except the Bike Power Channel
@@ -554,14 +554,14 @@ int main(void)
 {
 
     #ifdef DEBUG  // ✅ Only flash LED in debug mode
-    nrf_gpio_cfg_output(LED1_PIN);       // Set LED2 as output
-    nrf_gpio_cfg_output(LED2_PIN);       // Set LED2 as output
-    nrf_gpio_cfg_output(LED3_PIN);       // Set LED2 as output
-    nrf_gpio_cfg_output(LED4_PIN);       // Set LED2 as output
-    nrf_gpio_pin_set(LED1_PIN);          // Turn off LED2
-    nrf_gpio_pin_set(LED2_PIN);          // Turn off LED2
-    nrf_gpio_pin_set(LED3_PIN);          // Turn off LED2
-    nrf_gpio_pin_set(LED4_PIN);          // Turn off LED2
+    nrf_gpio_cfg_output(LED_1);       // Set LED2 as output
+    nrf_gpio_cfg_output(LED_2);       // Set LED2 as output
+    nrf_gpio_cfg_output(LED_3);       // Set LED2 as output
+    nrf_gpio_cfg_output(LED_4);       // Set LED2 as output
+    nrf_gpio_pin_set(LED_1);          // Turn off LED2
+    nrf_gpio_pin_set(LED_2);          // Turn off LED2
+    nrf_gpio_pin_set(LED_3);          // Turn off LED2
+    nrf_gpio_pin_set(LED_4);          // Turn off LED2
     #endif
 
     uint32_t err_code;

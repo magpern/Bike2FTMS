@@ -3,11 +3,6 @@
 #include "ble_types.h"
 #include "nrf_gpio.h"
 
-#define LED1_PIN NRF_GPIO_PIN_MAP(0,13)  // LED1 on nRF52840 DK
-#define LED2_PIN NRF_GPIO_PIN_MAP(0,14)  // LED2 on nRF52840 DK
-#define LED3_PIN NRF_GPIO_PIN_MAP(0,15)  // LED3 on nRF52840 DK
-#define LED4_PIN NRF_GPIO_PIN_MAP(0,16)  // LED4 on nRF52840 DK
-
 #define MANUFACTURER_NAME "Magpern Devops"  // Manufacturer name
 
 #define APP_ADV_INTERVAL 40       // BLE advertising interval (25 ms)

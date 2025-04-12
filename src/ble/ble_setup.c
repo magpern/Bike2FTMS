@@ -28,6 +28,7 @@
 #include <ble_conn_params.h>
 #include "ble_advdata.h"
 #include "nrf_delay.h"
+#include "boards.h"
 
 app_timer_id_t ble_shutdown_timer;
 bool ant_active = false;
@@ -93,7 +94,7 @@ void gatt_init(void)
 void ble_power_timer_handler(void * p_context) {
 
     #ifdef DEBUG  // ✅ Only flash LED in debug mode
-        nrf_gpio_pin_toggle(LED3_PIN);       // Toggle LED2
+        nrf_gpio_pin_toggle(LED_3);       // Toggle LED2
     #endif
 
     if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID ) {
