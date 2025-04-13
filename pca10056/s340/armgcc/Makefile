@@ -9,6 +9,9 @@ endif
 ifeq ($(BOARD),pca10056)
   BOARD_UPPER := PCA10056
 endif
+ifeq ($(BOARD),xiaoble)
+  BOARD_UPPER := XIAOBLE
+endif
 
 SDK_ROOT := $(NRF5_SDK_ROOT)
 PROJ_DIR := $(abspath ../../../)
@@ -302,7 +305,7 @@ help:
 TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
 
 
-include $(TEMPLATE_PATH)/Makefile.common
+include $(PROJ_DIR)/Makefile.common
 
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 

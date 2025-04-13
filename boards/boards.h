@@ -89,6 +89,8 @@
   #include "arduino_nano_33_ant.h"
 #elif defined(BOARD_SEEED_XIAO_NRF52840)
   #include "SEEED_XIAO_NRF52840.h"
+#elif defined(BOARD_XIAOBLE)
+  #include "SEEED_XIAO_NRF52840.h"
 #elif defined(BOARD_PROMICRO)
   #include "promicro.h"
 #else

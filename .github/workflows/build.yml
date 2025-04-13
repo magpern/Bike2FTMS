@@ -19,7 +19,7 @@ jobs:
     if: '!contains(github.event.head_commit.message, ''skip ci'') && !contains(github.event.head_commit.message, ''skip release'')'
     strategy:
       matrix:
-        board: [promicro, pca10056]
+        board: [promicro, pca10056, xiaoble]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
