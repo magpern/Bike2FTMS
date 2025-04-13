@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "nrf_drv_gpiote.h"
+#include "boards.h"
 
 // Define GPIO for reed switch
 // Using P0.04 as it's available on all target boards
