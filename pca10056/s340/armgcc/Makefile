@@ -1,7 +1,7 @@
 PROJECT_NAME     := ble_ant_app_FTMS_pca10056_s340
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := _build_$(BOARD)
-BOARD ?= promicro
+BOARD ?= pca10056
 
 ifeq ($(BOARD),promicro)
   BOARD_UPPER := PROMICRO

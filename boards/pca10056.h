@@ -155,6 +155,8 @@ extern "C" {
 #define ARDUINO_A4_PIN              30    // Analog channel 4
 #define ARDUINO_A5_PIN              31    // Analog channel 5
 
+#define PIN_REED_SENSOR             ARDUINO_8_PIN  // (1, 10) a clean, unused GPIO
+
 
 #ifdef __cplusplus
 }

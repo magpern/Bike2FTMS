@@ -274,10 +274,9 @@ static void ant_restart_timer_handler(void *p_context)
 static void enter_deep_sleep(void)
 {
     // Turn off all LEDs before sleep
-    #ifdef DEBUG
-    nrf_gpio_pin_set(LED_1);
-    nrf_gpio_pin_set(LED_4);
-    #endif
+    for (int i = 0; i < LEDS_NUMBER; ++i) {
+        bsp_board_led_off(i);
+    }
 
     // Enable reed sensor for wake
     reed_sensor_enable();
@@ -356,10 +355,6 @@ static void start_device_shutdown_delay_timer(void)
 
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
-#ifdef DEBUG
-    nrf_gpio_pin_toggle(LED_4);
-#endif
-
     // ✅ Ignore events from any channel except the Bike Power Channel
     if (p_ant_evt->channel != ANT_BPWR_ANT_CHANNEL)
     {
@@ -553,15 +548,12 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
 int main(void)
 {
 
-    #ifdef DEBUG  // ✅ Only flash LED in debug mode
-    nrf_gpio_cfg_output(LED_1);       // Set LED2 as output
-    nrf_gpio_cfg_output(LED_2);       // Set LED2 as output
-    nrf_gpio_cfg_output(LED_3);       // Set LED2 as output
-    nrf_gpio_cfg_output(LED_4);       // Set LED2 as output
-    nrf_gpio_pin_set(LED_1);          // Turn off LED2
-    nrf_gpio_pin_set(LED_2);          // Turn off LED2
-    nrf_gpio_pin_set(LED_3);          // Turn off LED2
-    nrf_gpio_pin_set(LED_4);          // Turn off LED2
+    bsp_board_init(BSP_INIT_LEDS);
+
+    #ifdef DEBUG  // ✅ Only manipulate LEDs in debug mode
+    for (int i = 0; i < LEDS_NUMBER; i++) {
+        bsp_board_led_off(i);  // Turn off all board-defined LEDs
+    }
     #endif
 
     uint32_t err_code;

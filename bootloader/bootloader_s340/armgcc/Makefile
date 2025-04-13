@@ -2,7 +2,7 @@ PROJECT_NAME     := satsbike_bootloader
 TARGETS          := satsbike_bootloader
 OUTPUT_DIRECTORY := _build_$(BOARD)
 
-BOARD ?= promicro
+BOARD ?= pca10056
 
 ifeq ($(BOARD),promicro)
   BOARD_UPPER := PROMICRO

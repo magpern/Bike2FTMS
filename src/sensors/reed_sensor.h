@@ -7,12 +7,12 @@
 // Define GPIO for reed switch
 // Using P0.04 as it's available on all target boards
 //
-// 🧩 Physical Pin Reference for P0.04:
-// - Seeed XIAO BLE:       A4, fifth from left top
-// - Pro Micro nRF52840:   Bottom-left, one up, labeled "104"
-// - nRF52840 DK:          Pin 4 on Arduino header
-//
-#define REED_SWITCH_PIN NRF_GPIO_PIN_MAP(0,4)
+// 🧩 Physical Pin Reference for PIN_REED_SENSOR:
+// - Seeed XIAO BLE:       P0.28 (D1), second pin from top-left on the inner row
+// - Pro Micro nRF52840:   P0.11 (D2), bottom row, second from left
+// - nRF52840 DK (PCA10056): P1.10, available on the GPIO headers, not tied to any default functions
+
+#define REED_SWITCH_PIN PIN_REED_SENSOR
 
 // Define function pointer type for callback
 typedef void (*reed_sensor_callback_t)(void);
