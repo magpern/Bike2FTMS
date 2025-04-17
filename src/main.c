@@ -366,7 +366,7 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
     // Flash LED 1 for any ANT+ message received
     if (p_ant_evt->event == EVENT_RX)
     {
-        #ifdef DEBUG 
+        #if defined(DEBUG) && !defined(RELEASE) 
             bsp_board_led_invert(3);       // Toggle LED4
         #endif
     }
@@ -557,10 +557,7 @@ int main(void)
 {
 
     bsp_board_init(BSP_INIT_LEDS);
-
-    #ifdef DEBUG  
-        bsp_board_leds_off();  // Turn off all LEDs
-    #endif
+    bsp_board_leds_off();  // Turn off all LEDs
 
     uint32_t err_code;
 

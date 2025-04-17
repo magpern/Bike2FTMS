@@ -1,8 +1,9 @@
+BOARD ?= pca10056
 PROJECT_NAME     := bikeble_bootloader
 TARGETS          := bikeble_bootloader_$(BOARD)
 OUTPUT_DIRECTORY := _build_$(BOARD)
 
-BOARD ?= pca10056
+
 
 ifeq ($(BOARD),promicro)
   BOARD_UPPER := PROMICRO
@@ -163,21 +164,13 @@ LIB_FILES += \
   $(SDK_ROOT)/external/nrf_oberon/lib/cortex-m4/hard-float/liboberon_3.0.8.a \
   $(SDK_ROOT)/external/nrf_cc310_bl/lib/cortex-m4/hard-float/libnrf_cc310_bl_0.9.13.a \
 
-# Optimization flags
-OPT = -Os -g3
-# Uncomment the line below to enable link time optimization
-OPT += -flto
-
 ifeq ($(RELEASE),1)
-  OPT = -Os -flto=4
+  OPT = -Os
   CFLAGS += -DRELEASE
+  CFLAGS += -DNRF_LOG_ENABLED=0
 else
   OPT = -Og -g3
   CFLAGS += -DDEBUG
-endif
-
-ifeq ($(RELEASE),1)
-  CFLAGS += -DNRF_LOG_ENABLED=0
 endif
 
 # C flags common to all targets

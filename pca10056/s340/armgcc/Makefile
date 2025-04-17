@@ -205,13 +205,15 @@ INC_FOLDERS += \
 LIB_FILES += \
 
 ifeq ($(RELEASE),1)
-  $(info 🔒 Release build enabled: optimizing with -O3 -flto)
-  OPT = -O3 -flto=4
+  $(info 🔒 Release build enabled)
+  OPT = -O2
   CFLAGS += -DRELEASE
+  CFLAGS += -DNRF_LOG_ENABLED=0
 else
-  $(info 🐞 Debug build enabled: enabling -Og -g3 and -DDEBUG)
+  $(info 🐞 Debug build enabled)
   OPT = -Og -g3
   CFLAGS += -DDEBUG
+  CFLAGS += -DNRF_LOG_ENABLED=1
 endif
 
 # C flags common to all targets

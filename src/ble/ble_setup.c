@@ -93,7 +93,7 @@ void gatt_init(void)
 
 void ble_power_timer_handler(void * p_context) {
 
-    #ifdef DEBUG  
+    #if defined(DEBUG) && !defined(RELEASE)
         bsp_board_led_invert(2);       // Toggle LED2
     #endif
 
@@ -561,7 +561,7 @@ void ble_power_timer_stop(void)
 {
     ret_code_t err_code = app_timer_stop(m_ble_power_timer);
 
-    // If it’s already stopped, it returns NRF_SUCCESS or NRF_ERROR_INVALID_STATE
+    // If it's already stopped, it returns NRF_SUCCESS or NRF_ERROR_INVALID_STATE
     if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_INVALID_STATE))
     {
         APP_ERROR_CHECK(err_code);
