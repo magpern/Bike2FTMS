@@ -1,7 +1,7 @@
-PROJECT_NAME     := ble_ant_app_FTMS_pca10056_s340
-TARGETS          := nrf52840_xxaa
-OUTPUT_DIRECTORY := _build_$(BOARD)
 BOARD ?= pca10056
+PROJECT_NAME     := ble_ant_app_FTMS_$(BOARD)_s340
+TARGETS          := nrf52840_xxaa_$(BOARD)
+OUTPUT_DIRECTORY := _build_$(BOARD)
 
 ifeq ($(BOARD),promicro)
   BOARD_UPPER := PROMICRO
@@ -16,7 +16,7 @@ endif
 SDK_ROOT := $(NRF5_SDK_ROOT)
 PROJ_DIR := $(abspath ../../../)
 
-$(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
+$(OUTPUT_DIRECTORY)/nrf52840_xxaa_$(BOARD).out: \
   LINKER_SCRIPT  := SatsBike_gcc_nrf52.ld
 
 # Source files common to all targets
@@ -280,10 +280,10 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += --specs=nano.specs
 LDFLAGS += -L$(SDK_ROOT)/components/nfc/t2t_lib
 
-nrf52840_xxaa: CFLAGS += -D__HEAP_SIZE=8192
-nrf52840_xxaa: CFLAGS += -D__STACK_SIZE=8192
-nrf52840_xxaa: ASMFLAGS += -D__HEAP_SIZE=8192
-nrf52840_xxaa: ASMFLAGS += -D__STACK_SIZE=8192
+CFLAGS += -D__HEAP_SIZE=8192
+CFLAGS += -D__STACK_SIZE=8192
+ASMFLAGS += -D__HEAP_SIZE=8192
+ASMFLAGS += -D__STACK_SIZE=8192
 
 # Add standard libraries at the very end of the linker input, after all objects
 # that may need symbols provided by these libraries.
@@ -294,7 +294,7 @@ LIB_FILES += -l:nfc_t2t_lib_gcc.a
 .PHONY: default help
 
 # Default target - first one defined
-default: nrf52840_xxaa
+default: nrf52840_xxaa_$(BOARD)
 
 # Print all targets that can be built
 help:
@@ -314,8 +314,8 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 # Flash the program
 flash: default
-	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
-	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --sectorerase
+	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52840_xxaa_$(BOARD).hex
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa_$(BOARD).hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
 .PHONY: build_all build_bootloader
@@ -333,8 +333,8 @@ flash_softdevice:
 	nrfjprog -f nrf52 --reset
 
 SOFTDEVICE_HEX := $(SDK_ROOT)/components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex
-BOOTLOADER_HEX := ../../../bootloader/bootloader_s340/armgcc/_build_$(BOARD)/satsbike_bootloader.hex
-APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
+BOOTLOADER_HEX := ../../../bootloader/bootloader_s340/armgcc/_build_$(BOARD)/satsbike_bootloader_$(BOARD).hex
+APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa_$(BOARD).hex
 MERGED_HEX     := merged_firmware_$(BOARD).hex
 DFU_SETTINGS   := dfu_settings.hex
 
@@ -386,7 +386,7 @@ flash_all: build_all merge_all
 erase:
 	nrfjprog -f nrf52 --eraseall
 
-APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
+APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa_$(BOARD).hex
 DFU_SETTINGS   := dfu_settings.hex
 MERGED_APP_HEX := merged_app_$(BOARD).hex
 

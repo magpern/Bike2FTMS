@@ -1,5 +1,5 @@
 PROJECT_NAME     := satsbike_bootloader
-TARGETS          := satsbike_bootloader
+TARGETS          := satsbike_bootloader_$(BOARD)
 OUTPUT_DIRECTORY := _build_$(BOARD)
 
 BOARD ?= pca10056
@@ -231,18 +231,17 @@ LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs
 
-satsbike_bootloader: CFLAGS += -D__HEAP_SIZE=0
-satsbike_bootloader: ASMFLAGS += -D__HEAP_SIZE=0
+CFLAGS += -D__HEAP_SIZE=0
+ASMFLAGS += -D__HEAP_SIZE=0
 
 # Add standard libraries at the very end of the linker input, after all objects
 # that may need symbols provided by these libraries.
 LIB_FILES += -lc -lnosys -lm
 
-
 .PHONY: default help
 
 # Default target - first one defined
-default: satsbike_bootloader
+default: satsbike_bootloader_$(BOARD)
 
 # Print all targets that can be built
 help:
@@ -266,8 +265,8 @@ info:
 
 # Flash the program
 flash: default
-	@echo Flashing: $(OUTPUT_DIRECTORY)/satsbike_bootloader.hex
-	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/satsbike_bootloader.hex --sectorerase
+	@echo Flashing: $(OUTPUT_DIRECTORY)/satsbike_bootloader_$(BOARD).hex
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/satsbike_bootloader_$(BOARD).hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
 # Flash softdevice

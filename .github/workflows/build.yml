@@ -96,7 +96,7 @@ jobs:
         run: |
           cd pca10056/s340/armgcc
           nrfutil settings generate --family NRF52840 \
-            --application _build_${{ matrix.board }}/nrf52840_xxaa.hex \
+            --application _build_${{ matrix.board }}/nrf52840_xxaa_${{ matrix.board }}.hex \
             --application-version ${{ github.run_number }} \
             --bootloader-version 1 \
             --bl-settings-version 2 \
@@ -107,7 +107,7 @@ jobs:
         run: |
           cd pca10056/s340/armgcc
           mergehex --merge \
-            _build_${{ matrix.board }}/nrf52840_xxaa.hex \
+            _build_${{ matrix.board }}/nrf52840_xxaa_${{ matrix.board }}.hex \
             dfu_settings_${{ matrix.board }}.hex \
             --output merged_firmware_${{ matrix.board }}.hex
 
@@ -115,7 +115,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           nrfutil pkg generate --hw-version 52 \
-            --application pca10056/s340/armgcc/_build_${{ matrix.board }}/nrf52840_xxaa.hex \
+            --application pca10056/s340/armgcc/_build_${{ matrix.board }}/nrf52840_xxaa_${{ matrix.board }}.hex \
             --application-version ${{ github.run_number }} \
             --sd-req 0xCE \
             --key-file private_key.pem \
