@@ -93,11 +93,10 @@ void gatt_init(void)
 
 void ble_power_timer_handler(void * p_context) {
 
-    #ifdef DEBUG
-    if (LEDS_NUMBER > 2) {
-        bsp_board_led_invert(2);  // Safe only if the board has 3+ LEDs
-    }
+    #ifdef DEBUG  // ✅ Only flash LED in debug mode
+        nrf_gpio_pin_toggle(LED_3);       // Toggle LED2
     #endif
+
 
     if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID ) {
         NRF_LOG_INFO("🚴 BLE Power queued: %d W", latest_power_watts);
