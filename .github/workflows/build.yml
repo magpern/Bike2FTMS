@@ -27,16 +27,18 @@ jobs:
       - name: Derive version from Git
         id: version
         run: |
+          # Get the short SHA
+          SHA=$(git rev-parse --short HEAD)
+          
+          # Try to get the latest tag, but don't fail if none exists
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          
           # Determine if this is a tag-based or manual build
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/tags/"* ]]; then
             # This is a tag-based build
-            TAG=$(git describe --tags --abbrev=0)
-            SHA=$(git rev-parse --short HEAD)
             VERSION="${TAG#v}-${SHA}"
           else
             # This is a manual build or PR
-            TAG=$(git describe --tags --abbrev=0)
-            SHA=$(git rev-parse --short HEAD)
             VERSION="${TAG#v}-SNAPSHOT-${SHA}"
           fi
           
