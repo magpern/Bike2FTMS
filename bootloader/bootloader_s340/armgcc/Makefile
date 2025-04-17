@@ -1,5 +1,5 @@
-PROJECT_NAME     := satsbike_bootloader
-TARGETS          := satsbike_bootloader_$(BOARD)
+PROJECT_NAME     := bikeble_bootloader
+TARGETS          := bikeble_bootloader_$(BOARD)
 OUTPUT_DIRECTORY := _build_$(BOARD)
 
 BOARD ?= pca10056
@@ -241,12 +241,12 @@ LIB_FILES += -lc -lnosys -lm
 .PHONY: default help
 
 # Default target - first one defined
-default: satsbike_bootloader_$(BOARD)
+default: bikeble_bootloader_$(BOARD)
 
 # Print all targets that can be built
 help:
 	@echo following targets are available:
-	@echo		satsbike_bootloader
+	@echo		bikeble_bootloader
 	@echo		flash_softdevice
 	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
@@ -265,8 +265,8 @@ info:
 
 # Flash the program
 flash: default
-	@echo Flashing: $(OUTPUT_DIRECTORY)/satsbike_bootloader_$(BOARD).hex
-	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/satsbike_bootloader_$(BOARD).hex --sectorerase
+	@echo Flashing: $(OUTPUT_DIRECTORY)/bikeble_bootloader_$(BOARD).hex
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/bikeble_bootloader_$(BOARD).hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
 # Flash softdevice

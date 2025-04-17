@@ -137,12 +137,54 @@ jobs:
             --key-file private_key.pem \
             bikeble_dfu-${{ matrix.board }}-${VERSION}.zip
 
+      # New step: Create full manufacturing package (all components)
+      - name: Create full manufacturing package for ${{ matrix.board }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Define paths to all components
+          SOFTDEVICE_HEX="pca10056/s340/hex/ANT_s340_nrf52_7.0.1.hex"
+          BOOTLOADER_HEX="bootloader/bootloader_s340/armgcc/_build_${{ matrix.board }}/bikeble_bootloader_${{ matrix.board }}.hex"
+          APP_HEX="pca10056/s340/armgcc/_build_${{ matrix.board }}/nrf52840_xxaa_${{ matrix.board }}.hex"
+          DFU_SETTINGS="pca10056/s340/armgcc/dfu_settings_${{ matrix.board }}.hex"
+          
+          # Create output files
+          FULL_HEX="full_firmware_${{ matrix.board }}-${VERSION}.hex"
+          FULL_DFU_PKG="bikeble_full_manufacturing_dfu-${{ matrix.board }}-${VERSION}.zip"
+          
+          # Merge all components into one hex file
+          echo "Merging all components into one hex file..."
+          mergehex --merge ${SOFTDEVICE_HEX} ${BOOTLOADER_HEX} ${APP_HEX} ${DFU_SETTINGS} --output ${FULL_HEX}
+          
+          # Create full DFU package for manufacturing
+          echo "Creating full manufacturing DFU package..."
+          nrfutil pkg generate --hw-version 52 \
+            --application ${APP_HEX} \
+            --application-version ${{ github.run_number }} \
+            --bootloader ${BOOTLOADER_HEX} \
+            --bootloader-version 1 \
+            --softdevice ${SOFTDEVICE_HEX} \
+            --sd-id 0xCE \
+            --sd-req 0xCE \
+            --key-file private_key.pem \
+            ${FULL_DFU_PKG}
+
       - name: Upload artifacts for ${{ matrix.board }}
         uses: actions/upload-artifact@v4
         with:
           name: bikeble-${{ matrix.board }}-firmware
           path: |
             bikeble_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
+          retention-days: 7
+          
+      # New step: Upload manufacturing artifacts separately
+      - name: Upload manufacturing artifacts for ${{ matrix.board }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bikeble-${{ matrix.board }}-manufacturing
+          path: |
+            bikeble_full_manufacturing_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
+            full_firmware_${{ matrix.board }}-${{ steps.version.outputs.version }}.hex
           retention-days: 7
 
       - name: Upload to GitHub Release

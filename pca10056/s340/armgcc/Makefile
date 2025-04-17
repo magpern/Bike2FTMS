@@ -333,7 +333,7 @@ flash_softdevice:
 	nrfjprog -f nrf52 --reset
 
 SOFTDEVICE_HEX := $(SDK_ROOT)/components/softdevice/s340/hex/ANT_s340_nrf52_7.0.1.hex
-BOOTLOADER_HEX := ../../../bootloader/bootloader_s340/armgcc/_build_$(BOARD)/satsbike_bootloader_$(BOARD).hex
+BOOTLOADER_HEX := ../../../bootloader/bootloader_s340/armgcc/_build_$(BOARD)/bikeble_bootloader_$(BOARD).hex
 APP_HEX        := $(OUTPUT_DIRECTORY)/nrf52840_xxaa_$(BOARD).hex
 MERGED_HEX     := merged_firmware_$(BOARD).hex
 DFU_SETTINGS   := dfu_settings.hex

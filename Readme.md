@@ -50,7 +50,7 @@ The firmware is optimized for **low-power operation**, implementing sleep modes 
 ---
 
 ## **Setup & Usage**
-[![Download Firmware](https://img.shields.io/badge/download-satsbike_dfu.zip-blue?logo=github)](https://github.com/magpern/Bike2FTMS/releases/latest/download/satsbike_dfu.zip)
+[![Download Firmware](https://img.shields.io/badge/download-bikeble_dfu.zip-blue?logo=github)](https://github.com/magpern/Bike2FTMS/releases/latest/download/bikeble_dfu.zip)
 ### **1️⃣ Required Development Tools**
 - **nRF5 SDK v17.1.0**
 - **SoftDevice S340 v7.2.0**
