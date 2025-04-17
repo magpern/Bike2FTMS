@@ -94,6 +94,11 @@ make flash
 - [ ] Implement a **custom GATT service** for BLE client configuration.
 - [ ] Improve logging and debugging capabilities.
 
+### 🧩 Physical Pin Reference for PIN_REED_SENSOR:
+- Seeed XIAO BLE:         P0.28 (D2), second pin from top-left on the inner row
+- Pro Micro nRF52840:     P0.11 (D2), bottom row, second from left
+- nRF52840 DK (PCA10056): P1.10, available on the GPIO headers, not tied to any default functions
+
 ---
 
 ## **Next Steps**
