@@ -119,14 +119,14 @@ jobs:
             --application-version ${{ github.run_number }} \
             --sd-req 0xCE \
             --key-file private_key.pem \
-            satsbike_dfu-${{ matrix.board }}-${VERSION}.zip
+            bikeble_dfu-${{ matrix.board }}-${VERSION}.zip
 
       - name: Upload artifacts for ${{ matrix.board }}
         uses: actions/upload-artifact@v4
         with:
-          name: satsbike-${{ matrix.board }}-firmware
+          name: bikeble-${{ matrix.board }}-firmware
           path: |
-            satsbike_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
+            bikeble_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
           retention-days: 7
 
       - name: Upload to GitHub Release
@@ -134,6 +134,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            satsbike_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
+            bikeble_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
