@@ -205,8 +205,11 @@ INC_FOLDERS += \
 LIB_FILES += \
 
 ifeq ($(RELEASE),1)
-  OPT = -O3 -flto
+  $(info 🔒 Release build enabled: optimizing with -O3 -flto)
+  OPT = -O3 -flto=4
+  CFLAGS += -DRELEASE
 else
+  $(info 🐞 Debug build enabled: enabling -Og -g3 and -DDEBUG)
   OPT = -Og -g3
   CFLAGS += -DDEBUG
 endif
@@ -244,13 +247,6 @@ FIRMWARE_VERSION ?= $(GIT_VERSION)
 # Inject version as macro
 CFLAGS += -DFIRMWARE_VERSION=\"$(FIRMWARE_VERSION)\"
 CFLAGS += -DHARDWARE_REVISION_DEFAULT=\"Rev_$(BOARD_UPPER)\"
-
-ifeq ($(RELEASE),1)
-  OPT = -O3
-else
-  OPT = -Og -g3
-  CFLAGS += -DDEBUG
-endif
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)

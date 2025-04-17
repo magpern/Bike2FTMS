@@ -169,7 +169,7 @@ OPT = -Os -g3
 OPT += -flto
 
 ifeq ($(RELEASE),1)
-  OPT = -Os -flto
+  OPT = -Os -flto=4
   CFLAGS += -DRELEASE
 else
   OPT = -Og -g3
