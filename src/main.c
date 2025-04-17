@@ -97,6 +97,7 @@
 #include "ant_parameters.h"
 #include "ant_scanner.h"
 #include "boards.h"
+#include "nrf_delay.h"
 
 // Add moving average buffer size
 #define MOVING_AVG_SIZE 8
@@ -551,6 +552,30 @@ static void ant_bpwr_evt_handler(ant_bpwr_profile_t * p_profile, ant_bpwr_evt_t 
     }
 }
 
+#define DOT_DURATION     200
+#define DASH_DURATION    (DOT_DURATION * 3)
+#define SYMBOL_PAUSE     DOT_DURATION
+
+void morse_dot(void) {
+    bsp_board_led_on(BSP_BOARD_LED_0);
+    nrf_delay_ms(DOT_DURATION);
+    bsp_board_led_off(BSP_BOARD_LED_0);
+    nrf_delay_ms(SYMBOL_PAUSE);
+}
+
+void morse_dash(void) {
+    bsp_board_led_on(BSP_BOARD_LED_0);
+    nrf_delay_ms(DASH_DURATION);
+    bsp_board_led_off(BSP_BOARD_LED_0);
+    nrf_delay_ms(SYMBOL_PAUSE);
+}
+
+void morse_r(void) {
+    morse_dot();    // .
+    morse_dash();   // -
+    morse_dot();    // .
+}
+
 /**@brief Application main function.
  */
 int main(void)
@@ -558,6 +583,7 @@ int main(void)
 
     bsp_board_init(BSP_INIT_LEDS);
     bsp_board_leds_off();  // Turn off all LEDs
+    morse_r();  // Flash ".-." (R) on LED_1
 
     uint32_t err_code;
 

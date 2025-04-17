@@ -33,7 +33,8 @@
                 "S340",
                 "SOFTDEVICE_PRESENT",
                 "DEBUG",
-                "DEBUG_NRF"
+                "DEBUG_NRF",
+                "BOARD_PCA10056"
             ],
             "forcedInclude": [
                 "D:/nRF5_SDK/projects/SatsBike/pca10056/s340/config/sdk_config.h"
