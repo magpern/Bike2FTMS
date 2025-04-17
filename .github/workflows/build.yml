@@ -181,11 +181,11 @@ jobs:
       - name: Upload manufacturing artifacts for ${{ matrix.board }}
         uses: actions/upload-artifact@v4
         with:
-          name: bikeble-${{ matrix.board }}-manufacturing
+          name: bikeble-manufacturing-${{ matrix.board }}
           path: |
             bikeble_full_manufacturing_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
             full_firmware_${{ matrix.board }}-${{ steps.version.outputs.version }}.hex
-          retention-days: 7
+          retention-days: 1
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -195,3 +195,25 @@ jobs:
             bikeble_dfu-${{ matrix.board }}-${{ steps.version.outputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  combine:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all manufacturing artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: combined
+
+      - name: Combine into one ZIP
+        run: |
+          mkdir final_package
+          cp combined/bikeble-manufacturing-*/bikeble_full_manufacturing_dfu-*.zip final_package/
+          cp combined/bikeble-manufacturing-*/full_firmware_*.hex final_package/
+          zip -r bikeble_all_manufacturing.zip final_package
+
+      - name: Upload combined manufacturing package
+        uses: actions/upload-artifact@v4
+        with:
+          name: bikeble-manufacturing-all
+          path: bikeble_all_manufacturing.zip
