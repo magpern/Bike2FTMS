@@ -355,20 +355,20 @@ static void start_device_shutdown_delay_timer(void)
 
 void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
 {
-    // Flash LED 1 for any ANT+ message received
-    if (p_ant_evt->event == EVENT_RX)
-    {
-        #ifdef DEBUG  // ✅ Only flash LED in debug mode
-            nrf_gpio_pin_toggle(LED_4);       // Toggle LED4
-        #endif
-    }
-
     // ✅ Ignore events from any channel except the Bike Power Channel
     if (p_ant_evt->channel != ANT_BPWR_ANT_CHANNEL)
     {
         NRF_LOG_DEBUG("Ignoring ANT event from channel %u (expected channel %u)",
                      p_ant_evt->channel, ANT_BPWR_ANT_CHANNEL);
         return;
+    }
+
+    // Flash LED 1 for any ANT+ message received
+    if (p_ant_evt->event == EVENT_RX)
+    {
+        #ifdef DEBUG 
+            bsp_board_led_invert(3);       // Toggle LED4
+        #endif
     }
 
     switch (p_ant_evt->event)
@@ -558,10 +558,8 @@ int main(void)
 
     bsp_board_init(BSP_INIT_LEDS);
 
-    #ifdef DEBUG  // ✅ Only manipulate LEDs in debug mode
-    for (int i = 0; i < LEDS_NUMBER; i++) {
-        bsp_board_led_off(i);  // Turn off all board-defined LEDs
-    }
+    #ifdef DEBUG  
+        bsp_board_leds_off();  // Turn off all LEDs
     #endif
 
     uint32_t err_code;

@@ -81,7 +81,7 @@ jobs:
       - name: Build bootloader
         run: |
           cd bootloader/bootloader_s340/armgcc
-          make -j4 DEBUG=0 OPT=-Os BOARD=${{ matrix.board }}
+          make -j4 RELEASE=1 BOARD=${{ matrix.board }}
 
       - name: Build application for ${{ matrix.board }}
         run: |

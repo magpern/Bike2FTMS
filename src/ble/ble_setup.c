@@ -93,8 +93,8 @@ void gatt_init(void)
 
 void ble_power_timer_handler(void * p_context) {
 
-    #ifdef DEBUG  // ✅ Only flash LED in debug mode
-        nrf_gpio_pin_toggle(LED_3);       // Toggle LED2
+    #ifdef DEBUG  
+        bsp_board_led_invert(2);       // Toggle LED2
     #endif
 
 

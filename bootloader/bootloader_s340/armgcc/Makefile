@@ -166,7 +166,19 @@ LIB_FILES += \
 # Optimization flags
 OPT = -Os -g3
 # Uncomment the line below to enable link time optimization
-#OPT += -flto
+OPT += -flto
+
+ifeq ($(RELEASE),1)
+  OPT = -Os -flto
+  CFLAGS += -DRELEASE
+else
+  OPT = -Og -g3
+  CFLAGS += -DDEBUG
+endif
+
+ifeq ($(RELEASE),1)
+  CFLAGS += -DNRF_LOG_ENABLED=0
+endif
 
 # C flags common to all targets
 CFLAGS += $(OPT)

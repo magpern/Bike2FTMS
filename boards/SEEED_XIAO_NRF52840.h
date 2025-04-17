@@ -53,11 +53,6 @@ extern "C" {
 #define LEDS_ACTIVE_STATE           0  // XIAO LEDs are active low
 #define LED_BUILTIN                 LED_1  // Default built-in LED is the red one
 
-// Separate defines for individual colors of the RGB LED
-#define LED_RED                     LED_1  // Red LED pin
-#define LED_BLUE                    LED_2  // Blue LED pin
-#define LED_GREEN                   LED_3  // Green LED pin
-
 // Button Definitions
 #define BUTTONS_NUMBER              0  // No built-in buttons on XIAO
 #define BUTTONS_LIST                {} // Empty as no buttons

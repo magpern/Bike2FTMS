@@ -204,11 +204,12 @@ INC_FOLDERS += \
 # Libraries common to all targets
 LIB_FILES += \
 
-# Optimization flags
-OPT = -O3 -g3
-# Uncomment the line below to enable link time optimization
-#OPT += -flto
-DEBUG = 1  # Force debug build
+ifeq ($(RELEASE),1)
+  OPT = -O3 -flto
+else
+  OPT = -Og -g3
+  CFLAGS += -DDEBUG
+endif
 
 # C flags common to all targets
 CFLAGS += $(OPT)
