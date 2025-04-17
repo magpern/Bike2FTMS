@@ -412,3 +412,19 @@ SDK_CONFIG_FILE := ../config/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:
 	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)
+
+BOARDS := promicro pca10056 xiaoble
+BOOTLOADER_DIR := ../../../bootloader/bootloader_s340/armgcc
+
+.PHONY: package_all
+package_all:
+	$(MAKE) -C $(BOOTLOADER_DIR) BOARD=promicro RELEASE=1
+	$(MAKE) BOARD=promicro RELEASE=1 default pkg
+	$(MAKE) -C $(BOOTLOADER_DIR) BOARD=pca10056 RELEASE=1
+	$(MAKE) BOARD=pca10056 RELEASE=1 default pkg
+	$(MAKE) -C $(BOOTLOADER_DIR) BOARD=xiaoble RELEASE=1
+	$(MAKE) BOARD=xiaoble RELEASE=1 default pkg
+
+
+
+
