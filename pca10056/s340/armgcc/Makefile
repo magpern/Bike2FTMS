@@ -359,7 +359,7 @@ merge_all:
 
 	@echo Done! $(MERGED_HEX)
 
-PKG_NAME       := satsbike_$(BOARD)_dfu.zip
+PKG_NAME       := bikeble_$(BOARD)_dfu.zip
 HW_VERSION    := 52
 APP_VERSION   := 1
 SD_ID         := 0xCE  # Use actual value if SoftDevice has a known ID
