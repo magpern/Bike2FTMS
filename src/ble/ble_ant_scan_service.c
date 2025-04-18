@@ -20,9 +20,7 @@
 #define ANT_LIB_CONFIG_RSSI_MASK               0xC0
 #define ANT_LIB_CONFIG_RX_TIMESTAMP            0x20
 
-#define MAX_ANT_DEVICES 10  // Store up to 10 recent devices
-
-#define MOCK_SCANING
+#define MAX_ANT_DEVICES 20  // Store up to 10 recent devices
 
 
 static uint16_t m_service_handle;
