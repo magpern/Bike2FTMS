@@ -100,7 +100,7 @@
 #include "nrf_delay.h"
 
 // Add moving average buffer size
-#define MOVING_AVG_SIZE 8
+#define MOVING_AVG_SIZE 6
 
 // Add moving average buffers and counters
 static uint16_t power_buffer[MOVING_AVG_SIZE] = {0};
