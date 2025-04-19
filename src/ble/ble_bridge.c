@@ -22,6 +22,8 @@ APP_TIMER_DEF(m_inactivity_timer);
 // Constants
 #define INACTIVITY_TIMEOUT_MS  20000  // 20 seconds inactivity before sleep
 #define INACTIVITY_CHECK_MS    1000   // Check inactivity every second
+#define APP_TIMER_PRESCALER    0      // Timer prescaler value
+#define APP_TIMER_CLOCK_FREQ   32768  // Timer clock frequency in Hz
 
 // State tracking
 static bool m_bridge_active = false;
@@ -30,6 +32,11 @@ static bool m_is_connected = false;
 static cycling_data_t m_latest_data;
 static uint32_t m_last_data_timestamp = 0;
 static uint32_t m_last_connection_timestamp = 0;
+
+// Function to convert timer ticks to milliseconds
+static uint32_t ticks_to_ms(uint32_t ticks) {
+    return ((ticks * 1000) / (APP_TIMER_CLOCK_FREQ / (APP_TIMER_PRESCALER + 1)));
+}
 
 // Function to handle BLE timer expiration
 static void ble_update_timer_handler(void * p_context) {
@@ -59,8 +66,8 @@ static void inactivity_timer_handler(void * p_context) {
     uint32_t time_since_connection = app_timer_cnt_diff_compute(current_time, m_last_connection_timestamp);
     
     // Convert ticks to ms
-    time_since_data = app_timer_cnt_to_ms(time_since_data);
-    time_since_connection = app_timer_cnt_to_ms(time_since_connection);
+    time_since_data = ticks_to_ms(time_since_data);
+    time_since_connection = ticks_to_ms(time_since_connection);
     
     // If no connection for 20 seconds
     if (!m_is_connected && time_since_connection >= INACTIVITY_TIMEOUT_MS) {

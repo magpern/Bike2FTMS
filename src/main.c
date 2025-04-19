@@ -100,7 +100,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
  * 
  * @details Performs all necessary steps to prepare the system for deep sleep
  */
-static void enter_deep_sleep(void)
+void enter_deep_sleep(void)
 {
     // Turn off all LEDs before sleep
     for (int i = 0; i < LEDS_NUMBER; ++i) {
