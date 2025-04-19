@@ -348,7 +348,7 @@ merge_all:
 	  --application-version 1 \
 	  --bootloader-version 1 \
 	  --bl-settings-version 2 \
-    --app-boot-validation NO_VALIDATION \
+    --app-boot-validation VALIDATE_GENERATED_CRC \
 	  $(DFU_SETTINGS)
 
 	@echo Merging: app + softdevice + bootloader + dfu_settings
