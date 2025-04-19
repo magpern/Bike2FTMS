@@ -20,8 +20,7 @@
 #define ANT_LIB_CONFIG_RSSI_MASK               0xC0
 #define ANT_LIB_CONFIG_RX_TIMESTAMP            0x20
 
-#define MAX_ANT_DEVICES 20  // Store up to 10 recent devices
-
+// MAX_ANT_DEVICES is defined in ant_scanner.h
 
 static uint16_t m_service_handle;
 static ble_gatts_char_handles_t scan_control_handles;
