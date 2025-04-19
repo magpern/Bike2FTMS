@@ -57,4 +57,10 @@ void ble_bridge_update_data(cycling_data_t data);
  */
 void ble_bridge_connection_event(bool connected);
 
+/**
+ * @brief Notify the BLE Bridge that a data source has been lost
+ * This will trigger deep sleep entry after logging the event
+ */
+void ble_bridge_data_source_lost(void);
+
 #endif /* BLE_BRIDGE_H */ 

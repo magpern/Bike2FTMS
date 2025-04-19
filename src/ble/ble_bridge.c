@@ -11,13 +11,25 @@
 #include "nrf_log.h"
 #include "app_timer.h"
 
+// Forward declaration of sleep function from main
+extern void enter_deep_sleep(void);
+
 // BLE update timer
 APP_TIMER_DEF(m_ble_update_timer);
+// Inactivity timer for power saving
+APP_TIMER_DEF(m_inactivity_timer);
+
+// Constants
+#define INACTIVITY_TIMEOUT_MS  20000  // 20 seconds inactivity before sleep
+#define INACTIVITY_CHECK_MS    1000   // Check inactivity every second
 
 // State tracking
 static bool m_bridge_active = false;
 static bool m_data_ready = false;
+static bool m_is_connected = false;
 static cycling_data_t m_latest_data;
+static uint32_t m_last_data_timestamp = 0;
+static uint32_t m_last_connection_timestamp = 0;
 
 // Function to handle BLE timer expiration
 static void ble_update_timer_handler(void * p_context) {
@@ -40,6 +52,31 @@ static void ble_update_timer_handler(void * p_context) {
     }
 }
 
+// Function to check inactivity and enter deep sleep if needed
+static void inactivity_timer_handler(void * p_context) {
+    uint32_t current_time = app_timer_cnt_get();
+    uint32_t time_since_data = app_timer_cnt_diff_compute(current_time, m_last_data_timestamp);
+    uint32_t time_since_connection = app_timer_cnt_diff_compute(current_time, m_last_connection_timestamp);
+    
+    // Convert ticks to ms
+    time_since_data = app_timer_cnt_to_ms(time_since_data);
+    time_since_connection = app_timer_cnt_to_ms(time_since_connection);
+    
+    // If no connection for 20 seconds
+    if (!m_is_connected && time_since_connection >= INACTIVITY_TIMEOUT_MS) {
+        NRF_LOG_INFO("BLE Bridge: No connection for %d ms, entering deep sleep", time_since_connection);
+        enter_deep_sleep();
+        return;
+    }
+    
+    // If no data updates for 20 seconds
+    if (m_last_data_timestamp > 0 && time_since_data >= INACTIVITY_TIMEOUT_MS) {
+        NRF_LOG_INFO("BLE Bridge: No data for %d ms, entering deep sleep", time_since_data);
+        enter_deep_sleep();
+        return;
+    }
+}
+
 bool ble_bridge_init(void) {
     uint32_t err_code;
     
@@ -47,9 +84,16 @@ bool ble_bridge_init(void) {
     err_code = app_timer_create(&m_ble_update_timer, APP_TIMER_MODE_REPEATED, ble_update_timer_handler);
     APP_ERROR_CHECK(err_code);
     
+    // Create a timer for inactivity checking
+    err_code = app_timer_create(&m_inactivity_timer, APP_TIMER_MODE_REPEATED, inactivity_timer_handler);
+    APP_ERROR_CHECK(err_code);
+    
     // Initialize state variables
     m_bridge_active = false;
     m_data_ready = false;
+    m_is_connected = false;
+    m_last_data_timestamp = 0;
+    m_last_connection_timestamp = app_timer_cnt_get(); // Start counting from init
     
     NRF_LOG_INFO("BLE Bridge: Initialized");
     
@@ -66,6 +110,10 @@ bool ble_bridge_start(void) {
     err_code = app_timer_start(m_ble_update_timer, APP_TIMER_TICKS(1000), NULL);
     APP_ERROR_CHECK(err_code);
     
+    // Start the inactivity timer
+    err_code = app_timer_start(m_inactivity_timer, APP_TIMER_TICKS(INACTIVITY_CHECK_MS), NULL);
+    APP_ERROR_CHECK(err_code);
+    
     m_bridge_active = true;
     
     NRF_LOG_INFO("BLE Bridge: Started");
@@ -79,6 +127,9 @@ void ble_bridge_stop(void) {
     
     // Stop the BLE update timer
     app_timer_stop(m_ble_update_timer);
+    
+    // Stop the inactivity timer
+    app_timer_stop(m_inactivity_timer);
     
     m_bridge_active = false;
     
@@ -94,15 +145,27 @@ void ble_bridge_update_data(cycling_data_t data) {
     m_latest_data = data;
     m_data_ready = true;
     
+    // Update the timestamp of the last data received
+    m_last_data_timestamp = app_timer_cnt_get();
+    
     // Log only in debug mode to avoid excessive logging
     NRF_LOG_DEBUG("BLE Bridge: Data updated - Power=%d W, Cadence=%d RPM", 
                   data.average_power, data.average_cadence);
 }
 
 void ble_bridge_connection_event(bool connected) {
+    m_is_connected = connected;
+    m_last_connection_timestamp = app_timer_cnt_get();
+    
     if (connected) {
         NRF_LOG_INFO("BLE Bridge: Device connected");
     } else {
         NRF_LOG_INFO("BLE Bridge: Device disconnected");
     }
+}
+
+// Function to notify the bridge that ANT+ data source has been lost
+void ble_bridge_data_source_lost(void) {
+    NRF_LOG_INFO("BLE Bridge: Data source lost, entering deep sleep");
+    enter_deep_sleep();
 } 

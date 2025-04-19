@@ -15,6 +15,7 @@
 #include "nrf_log.h"
 #include "app_error.h"
 #include "bsp.h"
+#include "includes/ble_bridge.h"
 
 // ANT+ BPWR profile instance
 static ant_bpwr_profile_t m_ant_bpwr;
@@ -157,6 +158,8 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context) {
         case EVENT_CHANNEL_CLOSED:
             m_ant_active = false;
             NRF_LOG_WARNING("⚠️ ANT+ channel closed or search timeout");
+            // Notify BLE Bridge that data source is lost
+            ble_bridge_data_source_lost();
             break;
 
         case EVENT_RX_FAIL:
