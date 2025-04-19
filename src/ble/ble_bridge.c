@@ -96,7 +96,7 @@ void ble_bridge_update_data(cycling_data_t data) {
     
     // Log only in debug mode to avoid excessive logging
     NRF_LOG_DEBUG("BLE Bridge: Data updated - Power=%d W, Cadence=%d RPM", 
-                 data.average_power, data.average_cadence);
+                  data.average_power, data.average_cadence);
 }
 
 void ble_bridge_connection_event(bool connected) {

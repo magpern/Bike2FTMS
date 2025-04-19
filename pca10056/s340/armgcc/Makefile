@@ -122,6 +122,10 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_saadc.c \
+  $(PROJ_DIR)/src/ble/ble_bridge.c \
+  $(PROJ_DIR)/src/data_manager.c \
+  $(PROJ_DIR)/src/cycling_data_model.c \
+  $(PROJ_DIR)/src/ant/ant_data_source.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -344,7 +348,7 @@ merge_all:
 	  --application-version 1 \
 	  --bootloader-version 1 \
 	  --bl-settings-version 2 \
-    --app-boot-validation VALIDATE_GENERATED_CRC \
+    --app-boot-validation NO_VALIDATION \
 	  $(DFU_SETTINGS)
 
 	@echo Merging: app + softdevice + bootloader + dfu_settings
