@@ -10,6 +10,7 @@
 #include <nrf_log.h>
 #include "ble_setup.h"
 #include "common_definitions.h"
+#include "includes/ble_bridge.h"
 
 #include "ble_custom_config.h"
 #include "ble_ant_scan_service.h"
@@ -42,13 +43,10 @@ NRF_BLE_QWR_DEF(m_qwr);                                                         
 static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context);
 NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 APP_TIMER_DEF(battery_timer);
-APP_TIMER_DEF(m_ble_power_timer);  // ✅ Use the same timer ID as in `ble_setup.h`
 
 volatile uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
 uint8_t m_adv_handle;      /**< Advertising handle. */
-
-void ble_power_timer_handler(void * p_context);  // ✅ Function declaration
 
 uint16_t latest_power_watts = 0;  // Define and initialize
 uint8_t latest_cadence_rpm = 0;
@@ -91,25 +89,6 @@ void gatt_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-void ble_power_timer_handler(void * p_context) {
-
-    #if defined(DEBUG) && !defined(RELEASE)
-        bsp_board_led_invert(2);       // Toggle LED2
-    #endif
-
-
-    if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID ) {
-        NRF_LOG_INFO("🚴 BLE Power queued: %d W", latest_power_watts);
-        ble_cps_send_power_measurement(&m_cps, latest_power_watts);
-    }
-    if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID) {    
-
-        NRF_LOG_INFO("🚴 FTMS Power queed: %d W, Cadence: %d RPM", latest_power_watts, latest_cadence_rpm);
-        // ✅ Send data to FTMS service (handles dedup, training state, notification)
-        ble_ftms_tick(&m_ftms, latest_power_watts, latest_cadence_rpm);
-    }
-}
-
 void stop_ble_advertising(void)
 {
     if (m_adv_handle == BLE_GAP_ADV_SET_HANDLE_NOT_SET)
@@ -118,7 +97,6 @@ void stop_ble_advertising(void)
         return;
     }
     NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
-    app_timer_stop(m_ble_power_timer);
     uint32_t err_code = sd_ble_gap_adv_stop(m_adv_handle);  // ✅ Pass advertising handle
 
     if (err_code == NRF_SUCCESS)
@@ -142,10 +120,6 @@ void ble_shutdown_timer_handler(void *p_context)
     {
         // 🛑 Stop BLE Power Transmission Timer
         NRF_LOG_INFO("🛑 Stopping BLE power transmission timer...");
-        ble_power_timer_stop();
-
-        NRF_LOG_WARNING("⚠️ ANT+ not found for 10 seconds. Stopping BLE...");
-
         stop_ble_advertising();
         ble_started = false;
     }
@@ -282,6 +256,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             m_battery_service.conn_handle = m_conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
+            
+            // Notify the BLE bridge about the connection
+            ble_bridge_connection_event(true);
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
@@ -292,6 +269,10 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             m_ftms.conn_handle = m_conn_handle;
             m_cps.conn_handle = m_conn_handle;
             m_battery_service.conn_handle = m_conn_handle;
+            
+            // Notify the BLE bridge about the disconnection
+            ble_bridge_connection_event(false);
+            
             // Keep ANT+ Running – Do NOT close the ANT+ channel!
             // Just restart BLE advertising
             start_ble_advertising();  
@@ -529,43 +510,4 @@ void advertising_init(void)
     for (int i = 0; i < advdata.uuids_complete.uuid_cnt; i++) {
         NRF_LOG_INFO("UUID: 0x%04X", advdata.uuids_complete.p_uuids[i].uuid);
     }
-}
-
-// 3) Create function
-void ble_power_timer_create(void)
-{
-    ret_code_t err_code;
-
-    err_code = app_timer_create(&m_ble_power_timer,
-                                APP_TIMER_MODE_REPEATED,
-                                ble_power_timer_handler);
-    APP_ERROR_CHECK(err_code);
-
-    NRF_LOG_INFO("✅ BLE power timer created");
-}
-
-// 4) Start function
-void ble_power_timer_start(void)
-{
-    ret_code_t err_code;
-
-    // Example: Fire every 2 seconds
-    err_code = app_timer_start(m_ble_power_timer, APP_TIMER_TICKS(1000), NULL);
-    APP_ERROR_CHECK(err_code);
-
-    NRF_LOG_INFO("✅ BLE power timer started");
-}
-
-// 5) Stop function
-void ble_power_timer_stop(void)
-{
-    ret_code_t err_code = app_timer_stop(m_ble_power_timer);
-
-    // If it's already stopped, it returns NRF_SUCCESS or NRF_ERROR_INVALID_STATE
-    if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_INVALID_STATE))
-    {
-        APP_ERROR_CHECK(err_code);
-    }
-
-    NRF_LOG_INFO("🛑 BLE power timer stopped");
 }

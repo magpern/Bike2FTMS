@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include "data_source.h"
 #include "cycling_data_model.h"
+#include "keiser_m3i_data_source.h"
 
 /**
  * @brief Initialize the data manager
@@ -22,10 +23,10 @@
 bool data_manager_init(void);
 
 /**
- * @brief Set the active data source type
+ * @brief Set the active data source
  * 
- * @param type Type of data source to activate
- * @param device_id Device ID for the data source
+ * @param type The type of data source to use
+ * @param device_id Device ID for ANT+ data source (ignored for other sources)
  * @return true if successful, false otherwise
  */
 bool data_manager_set_data_source(data_source_type_t type, uint16_t device_id);

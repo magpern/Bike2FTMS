@@ -63,4 +63,9 @@ void ble_bridge_connection_event(bool connected);
  */
 void ble_bridge_data_source_lost(void);
 
+/**
+ * @brief Reset the data timestamp to prevent inactivity timeout
+ */
+void ble_bridge_reset_data_timestamp(void);
+
 #endif /* BLE_BRIDGE_H */ 

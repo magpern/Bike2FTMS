@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "ble.h"
 #include "ble_srv_common.h"
+#include "data_source.h"
 #define MAX_BLE_FULL_NAME_LEN 15  // Includes custom name + "_12345"
 #define DEFAULT_BLE_NAME       "BikeBLE"
 #define BLE_NAME_MAX_LEN       8
@@ -12,6 +13,8 @@
 extern char ble_full_name[MAX_BLE_FULL_NAME_LEN];  // ✅ This is now accessible in `main.c`
 extern char m_ble_name[BLE_NAME_MAX_LEN + 1];
 extern uint16_t m_ant_device_id;  // ✅ This is now accessible in `main.c`
+extern data_source_type_t m_data_source_type;  // Current data source type
+extern uint8_t m_keiser_mac[BLE_GAP_ADDR_LEN];  // Keiser M3i MAC address
 
 /**@brief Function for initializing FDS and registering event handler. */
 void custom_service_init(void);

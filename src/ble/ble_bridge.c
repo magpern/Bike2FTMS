@@ -10,6 +10,7 @@
 #include "common_definitions.h"
 #include "nrf_log.h"
 #include "app_timer.h"
+#include "boards.h"
 
 // Forward declaration of sleep function from main
 extern void enter_deep_sleep(void);
@@ -21,7 +22,7 @@ APP_TIMER_DEF(m_inactivity_timer);
 
 // Constants
 #define INACTIVITY_TIMEOUT_MS  20000  // 20 seconds inactivity before sleep
-#define INACTIVITY_CHECK_MS    1000   // Check inactivity every second
+#define INACTIVITY_CHECK_MS    2000   // Check inactivity every second
 #define APP_TIMER_PRESCALER    0      // Timer prescaler value
 #define APP_TIMER_CLOCK_FREQ   32768  // Timer clock frequency in Hz
 
@@ -44,6 +45,10 @@ static void ble_update_timer_handler(void * p_context) {
         return;
     }
 
+    #if defined(DEBUG) && !defined(RELEASE)
+        bsp_board_led_invert(1);       // Toggle LED2
+    #endif
+    
     // Update the BLE services with the latest data
     NRF_LOG_DEBUG("BLE Bridge: Updating services with Power=%d W, Cadence=%d RPM", 
                   m_latest_data.average_power, m_latest_data.average_cadence);
@@ -69,6 +74,16 @@ static void inactivity_timer_handler(void * p_context) {
     time_since_data = ticks_to_ms(time_since_data);
     time_since_connection = ticks_to_ms(time_since_connection);
     
+    // If we're connected, reset the connection timestamp to now
+    // This keeps "time since connection" close to zero while connected
+    if (m_is_connected) {
+        m_last_connection_timestamp = current_time;
+        time_since_connection = 0;
+    }
+    
+    NRF_LOG_INFO("BLE Bridge: Inactivity check - Connected: %d, Time since data: %d ms, Time since disconnect: %d ms", 
+                  m_is_connected, time_since_data, time_since_connection);
+    
     // If no connection for 20 seconds
     if (!m_is_connected && time_since_connection >= INACTIVITY_TIMEOUT_MS) {
         NRF_LOG_INFO("BLE Bridge: No connection for %d ms, entering deep sleep", time_since_connection);
@@ -76,11 +91,19 @@ static void inactivity_timer_handler(void * p_context) {
         return;
     }
     
-    // If no data updates for 20 seconds
-    if (m_last_data_timestamp > 0 && time_since_data >= INACTIVITY_TIMEOUT_MS) {
-        NRF_LOG_INFO("BLE Bridge: No data for %d ms, entering deep sleep", time_since_data);
-        enter_deep_sleep();
-        return;
+    // If we have a BLE connection
+    if (m_is_connected) {
+        NRF_LOG_INFO("BLE Bridge: Device is connected, staying active");
+        // Only check data timeout if we have a data timestamp
+        if (m_last_data_timestamp > 0) {
+            if (time_since_data >= INACTIVITY_TIMEOUT_MS) {
+                NRF_LOG_INFO("BLE Bridge: No data for %d ms, entering deep sleep", time_since_data);
+                enter_deep_sleep();
+                return;
+            }
+        } else {
+            NRF_LOG_INFO("BLE Bridge: Connected but no data timestamp yet");
+        }
     }
 }
 
@@ -166,6 +189,8 @@ void ble_bridge_connection_event(bool connected) {
     
     if (connected) {
         NRF_LOG_INFO("BLE Bridge: Device connected");
+        // Reset the data timestamp when we get a connection
+        m_last_data_timestamp = app_timer_cnt_get();
     } else {
         NRF_LOG_INFO("BLE Bridge: Device disconnected");
     }
@@ -175,4 +200,9 @@ void ble_bridge_connection_event(bool connected) {
 void ble_bridge_data_source_lost(void) {
     NRF_LOG_INFO("BLE Bridge: Data source lost, entering deep sleep");
     enter_deep_sleep();
+}
+
+void ble_bridge_reset_data_timestamp(void) {
+    m_last_data_timestamp = app_timer_cnt_get();
+    NRF_LOG_DEBUG("BLE Bridge: Reset data timestamp");
 } 

@@ -16,10 +16,6 @@
 #define CUSTOM_SERVICE_UUID          0x1523
 #define CUSTOM_CHAR_DEVICE_INFO_UUID 0x1524  
 
-
-#define UICR_DEVICE_ID_ADDR  ((uint32_t *)(NRF_UICR_BASE + offsetof(NRF_UICR_Type, CUSTOMER[0])))
-#define UICR_BLE_NAME_ADDR   ((uint32_t *)(NRF_UICR_BASE + offsetof(NRF_UICR_Type, CUSTOMER[1])))
-
 NRF_SDH_BLE_OBSERVER(m_custom_service_observer, APP_BLE_OBSERVER_PRIO, ble_custom_service_on_ble_evt, NULL);
 
 static uint16_t m_service_handle;
@@ -29,6 +25,8 @@ static ble_gatts_char_handles_t m_device_info_handles;
 uint16_t m_ant_device_id = DEFAULT_ANT_DEVICE_ID;
 char m_ble_name[BLE_NAME_MAX_LEN + 1] = DEFAULT_BLE_NAME;  
 char ble_full_name[MAX_BLE_FULL_NAME_LEN] = {0};
+data_source_type_t m_data_source_type = DATA_SOURCE_ANT_PLUS;  // Default to ANT+
+uint8_t m_keiser_mac[BLE_GAP_ADDR_LEN] = {0};  // Default to all zeros
 
 #define CONFIG_FILE     (0x8010)
 #define CONFIG_REC_KEY  (0x7010)
@@ -36,6 +34,8 @@ char ble_full_name[MAX_BLE_FULL_NAME_LEN] = {0};
 typedef struct {
     uint16_t device_id;
     char name[BLE_NAME_MAX_LEN + 1];
+    uint8_t data_source_type;  // Store as uint8_t since enum size may vary
+    uint8_t keiser_mac[BLE_GAP_ADDR_LEN];
 } device_config_t;
 
 static bool fds_ready = false;
@@ -47,7 +47,7 @@ void save_device_config(void) {
         return;
     }
 
-    static uint8_t data[12] __attribute__((aligned(4)));  // Make static and ensure alignment
+    static uint8_t data[sizeof(device_config_t)] __attribute__((aligned(4)));  // Make static and ensure alignment
     memset(data, 0, sizeof(data)); // Zero out buffer first
 
     // Store Device ID (Little-Endian)
@@ -55,7 +55,13 @@ void save_device_config(void) {
     data[1] = (uint8_t)((m_ant_device_id >> 8) & 0xFF);
 
     // Copy BLE name and ensure padding with 0x00
-    strncpy((char *)&data[2], m_ble_name, 8); // Copy name
+    strncpy((char *)&data[2], m_ble_name, BLE_NAME_MAX_LEN);
+
+    // Store data source type
+    data[10] = (uint8_t)m_data_source_type;
+
+    // Store Keiser MAC address
+    memcpy(&data[11], m_keiser_mac, BLE_GAP_ADDR_LEN);
 
     // Print byte-by-byte for debugging
     NRF_LOG_INFO("🔍 Data to be stored:");
@@ -95,14 +101,14 @@ void save_device_config(void) {
     }
 }
 
-
-
 void load_device_config(void) {
     if (!fds_ready) {
         NRF_LOG_WARNING("⚠️ FDS not ready, using defaults");
         m_ant_device_id = DEFAULT_ANT_DEVICE_ID;
-        strncpy(m_ble_name, DEFAULT_BLE_NAME, 8);
-        m_ble_name[8] = '\0';
+        strncpy(m_ble_name, DEFAULT_BLE_NAME, BLE_NAME_MAX_LEN);
+        m_ble_name[BLE_NAME_MAX_LEN] = '\0';
+        m_data_source_type = DATA_SOURCE_ANT_PLUS;
+        memset(m_keiser_mac, 0, BLE_GAP_ADDR_LEN);
         update_ble_name();
         return;
     }
@@ -119,14 +125,24 @@ void load_device_config(void) {
         if (ret == NRF_SUCCESS) {
             uint8_t *data = (uint8_t *)record.p_data;
 
-            // **Verify byte order before parsing**
+            // Parse Device ID
             m_ant_device_id = (uint16_t)(data[0] | (data[1] << 8));
             NRF_LOG_INFO("✅ Parsed Device ID: %d (0x%04X)", m_ant_device_id, m_ant_device_id);
 
-            // **Check if name is missing**
-            memcpy(m_ble_name, &data[2], 8);
-            m_ble_name[8] = '\0';
+            // Parse BLE Name
+            memcpy(m_ble_name, &data[2], BLE_NAME_MAX_LEN);
+            m_ble_name[BLE_NAME_MAX_LEN] = '\0';
             NRF_LOG_INFO("✅ Parsed BLE Name: %s", m_ble_name);
+
+            // Parse Data Source Type
+            m_data_source_type = (data_source_type_t)data[10];
+            NRF_LOG_INFO("✅ Parsed Data Source Type: %d", m_data_source_type);
+
+            // Parse Keiser MAC Address
+            memcpy(m_keiser_mac, &data[11], BLE_GAP_ADDR_LEN);
+            NRF_LOG_INFO("✅ Parsed Keiser MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                        m_keiser_mac[0], m_keiser_mac[1], m_keiser_mac[2],
+                        m_keiser_mac[3], m_keiser_mac[4], m_keiser_mac[5]);
 
             fds_record_close(&desc);
         } else {
@@ -135,14 +151,25 @@ void load_device_config(void) {
     } else {
         NRF_LOG_WARNING("⚠️ No stored config found, using defaults");
         m_ant_device_id = DEFAULT_ANT_DEVICE_ID;
-        strncpy(m_ble_name, DEFAULT_BLE_NAME, 8);
-        m_ble_name[8] = '\0';
+        strncpy(m_ble_name, DEFAULT_BLE_NAME, BLE_NAME_MAX_LEN);
+        m_ble_name[BLE_NAME_MAX_LEN] = '\0';
+        m_data_source_type = DATA_SOURCE_ANT_PLUS;
+        memset(m_keiser_mac, 0, BLE_GAP_ADDR_LEN);
     }
 
     update_ble_name();
+    
+           // TEMPORARY TEST CASE - Keiser M3i configuration
+    m_ant_device_id = 1;
+    m_data_source_type = DATA_SOURCE_KEISER_M3I;  // Set to Keiser
+    uint8_t test_mac[6] = {0x24, 0xec, 0x4a, 0x2c, 0x6e, 0xe1};  // Test MAC address
+    memcpy(m_keiser_mac, test_mac, 6);  // Copy test MAC
+    NRF_LOG_INFO("🔧 TEMPORARY TEST CONFIG: Keiser M3i, Device ID: %d", m_ant_device_id);
+    NRF_LOG_INFO("📡 MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                test_mac[0], test_mac[1], test_mac[2], test_mac[3], test_mac[4], test_mac[5]);
+    update_ble_name();
+
 }
-
-
 
 static void fds_evt_handler(fds_evt_t const * p_evt) {
     switch (p_evt->id) {
@@ -202,8 +229,6 @@ static void fds_evt_handler(fds_evt_t const * p_evt) {
     }
 }
 
-
-
 void update_ble_name() {
     snprintf(ble_full_name, sizeof(ble_full_name), "%.*s_%05d",
              BLE_NAME_MAX_LEN, m_ble_name, m_ant_device_id);
@@ -230,8 +255,6 @@ void custom_service_init(void) {
     wait_for_fds_ready();
 }
 
-
-
 /**@brief Function for handling BLE writes. */
 static void on_write(ble_evt_t const *p_ble_evt) {
     ble_gatts_evt_write_t const *p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
@@ -239,7 +262,7 @@ static void on_write(ble_evt_t const *p_ble_evt) {
     if (p_evt_write->handle == m_device_info_handles.value_handle) {
         uint16_t write_len = p_evt_write->len;
 
-        if (write_len < 3 || write_len > BLE_NAME_MAX_LEN + 3) {
+        if (write_len < 3 || write_len > BLE_NAME_MAX_LEN + 3 + 1 + BLE_GAP_ADDR_LEN) {
             NRF_LOG_WARNING("Invalid Data Length: %d bytes", write_len);
             return;
         }
@@ -255,8 +278,22 @@ static void on_write(ble_evt_t const *p_ble_evt) {
         memcpy(m_ble_name, &p_evt_write->data[3], name_length);
         m_ble_name[name_length] = '\0';
 
+        // Extract Data Source Type
+        if (write_len >= 3 + name_length + 1) {
+            m_data_source_type = (data_source_type_t)p_evt_write->data[3 + name_length];
+        }
+
+        // Extract Keiser MAC Address
+        if (write_len >= 3 + name_length + 1 + BLE_GAP_ADDR_LEN) {
+            memcpy(m_keiser_mac, &p_evt_write->data[3 + name_length + 1], BLE_GAP_ADDR_LEN);
+        }
+
         NRF_LOG_INFO("New Device ID: %d", m_ant_device_id);
         NRF_LOG_INFO("New BLE Name: %s", m_ble_name);
+        NRF_LOG_INFO("New Data Source Type: %d", m_data_source_type);
+        NRF_LOG_INFO("New Keiser MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                    m_keiser_mac[0], m_keiser_mac[1], m_keiser_mac[2],
+                    m_keiser_mac[3], m_keiser_mac[4], m_keiser_mac[5]);
 
         // Save to FDS - will reboot after successful write
         save_device_config();
@@ -279,8 +316,8 @@ void ble_custom_service_init(void) {
 
     add_char_params.uuid = CUSTOM_CHAR_DEVICE_INFO_UUID;
     add_char_params.uuid_type = BLE_UUID_TYPE_BLE;
-    add_char_params.init_len = BLE_NAME_MAX_LEN + 3;
-    add_char_params.max_len = BLE_NAME_MAX_LEN + 3;
+    add_char_params.init_len = BLE_NAME_MAX_LEN + 3 + 1 + BLE_GAP_ADDR_LEN;  // Device ID (2) + Name Length (1) + Name (8) + Data Source Type (1) + MAC (6)
+    add_char_params.max_len = BLE_NAME_MAX_LEN + 3 + 1 + BLE_GAP_ADDR_LEN;
     add_char_params.char_props.read = 1;
     add_char_params.char_props.write = 1;
     add_char_params.read_access = SEC_OPEN;
@@ -288,12 +325,21 @@ void ble_custom_service_init(void) {
     characteristic_add(m_service_handle, &add_char_params, &m_device_info_handles);
 
     // ✅ Set initial value after adding the characteristic
-    uint8_t initial_value[BLE_NAME_MAX_LEN + 3] = {0};
+    uint8_t initial_value[BLE_NAME_MAX_LEN + 3 + 1 + BLE_GAP_ADDR_LEN] = {0};
 
+    // Device ID
     initial_value[0] = (uint8_t)(m_ant_device_id & 0xFF);
     initial_value[1] = (uint8_t)((m_ant_device_id >> 8) & 0xFF);
+
+    // BLE Name
     initial_value[2] = strlen(m_ble_name);
     memcpy(&initial_value[3], m_ble_name, initial_value[2]);
+
+    // Data Source Type
+    initial_value[3 + initial_value[2]] = (uint8_t)m_data_source_type;
+
+    // Keiser MAC Address
+    memcpy(&initial_value[3 + initial_value[2] + 1], m_keiser_mac, BLE_GAP_ADDR_LEN);
 
     ble_gatts_value_t value = {
         .len = sizeof(initial_value),
@@ -303,7 +349,6 @@ void ble_custom_service_init(void) {
 
     sd_ble_gatts_value_set(BLE_CONN_HANDLE_INVALID, m_device_info_handles.value_handle, &value);
 }
-
 
 /**@brief Function to initialize and load stored values */
 void custom_service_load_from_flash(void) {

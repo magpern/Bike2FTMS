@@ -252,7 +252,7 @@ int main(void)
     
     // Get device ID from settings
     uint16_t device_id = m_ant_device_id;
-    
+        
     // Set the data source based on configuration
     if (device_id == 0) {
         NRF_LOG_WARNING("🔄 Setup Mode: Data collection disabled, BLE Always On.");
@@ -260,17 +260,42 @@ int main(void)
         // Start BLE bridge only
         ble_bridge_start();
     } else {
-        // Set ANT+ as the data source
-        if (!data_manager_set_data_source(DATA_SOURCE_ANT_PLUS, device_id)) {
-            NRF_LOG_ERROR("Failed to set ANT+ data source");
-        } else {
-            // Start data collection
+        // Set data source based on configuration
+        if (m_data_source_type == DATA_SOURCE_KEISER_M3I) {
+            NRF_LOG_INFO("🔧 Using Keiser M3i data source");
+            NRF_LOG_INFO("📡 MAC Address: %02X:%02X:%02X:%02X:%02X:%02X",
+                        m_keiser_mac[0], m_keiser_mac[1], m_keiser_mac[2],
+                        m_keiser_mac[3], m_keiser_mac[4], m_keiser_mac[5]);
+            
+            // Then set the data source
+            if (!data_manager_set_data_source(DATA_SOURCE_KEISER_M3I, device_id)) {
+                NRF_LOG_ERROR("Failed to set Keiser M3i data source");
+                return -1;
+            }
+            
+            // Finally start data collection
             if (!data_manager_start_collection()) {
                 NRF_LOG_ERROR("Failed to start data collection");
+                return -1;
             }
             
             // Start BLE bridge
             ble_bridge_start();
+        } else {
+            NRF_LOG_INFO("🔧 Using ANT+ data source");
+            
+            // Set ANT+ as the data source
+            if (!data_manager_set_data_source(DATA_SOURCE_ANT_PLUS, device_id)) {
+                NRF_LOG_ERROR("Failed to set ANT+ data source");
+            } else {
+                // Start data collection
+                if (!data_manager_start_collection()) {
+                    NRF_LOG_ERROR("Failed to start data collection");
+                }
+                
+                // Start BLE bridge
+                ble_bridge_start();
+            }
         }
     }
 
