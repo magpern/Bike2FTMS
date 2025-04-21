@@ -159,6 +159,7 @@ void load_device_config(void) {
 
     update_ble_name();
     
+    /*
            // TEMPORARY TEST CASE - Keiser M3i configuration
     m_ant_device_id = 1;
     m_data_source_type = DATA_SOURCE_KEISER_M3I;  // Set to Keiser
@@ -168,7 +169,7 @@ void load_device_config(void) {
     NRF_LOG_INFO("📡 MAC: %02X:%02X:%02X:%02X:%02X:%02X",
                 test_mac[0], test_mac[1], test_mac[2], test_mac[3], test_mac[4], test_mac[5]);
     update_ble_name();
-
+    */
 }
 
 static void fds_evt_handler(fds_evt_t const * p_evt) {

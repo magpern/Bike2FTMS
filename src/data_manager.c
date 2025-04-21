@@ -98,6 +98,7 @@ bool data_manager_set_data_source(data_source_type_t type, uint16_t device_id)
     // Initialize the data source
     data_source_config_t config = {
         .type = type,
+        .device_id = device_id,
         .data_callback = data_source_callback
     };
 
