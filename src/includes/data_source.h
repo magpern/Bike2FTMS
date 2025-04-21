@@ -17,10 +17,10 @@
  * @brief Data source types supported by the application
  */
 typedef enum {
-    DATA_SOURCE_NONE = 0,  /**< No data source */
-    DATA_SOURCE_ANT_PLUS,  /**< ANT+ data source */
-    DATA_SOURCE_BLE_PROPRIETARY,  /**< Proprietary BLE data source */
-    DATA_SOURCE_KEISER_M3I  /**< Keiser M3i BLE data source */
+    DATA_SOURCE_ANT_PLUS = 0,  /**< ANT+ data source */
+    DATA_SOURCE_KEISER_M3I = 1,  /**< Keiser M3i BLE data source */
+    DATA_SOURCE_BLE_PROPRIETARY = 2,  /**< Proprietary BLE data source */
+    DATA_SOURCE_NONE = 0xff  /**< No data source */
 } data_source_type_t;
 
 /**
