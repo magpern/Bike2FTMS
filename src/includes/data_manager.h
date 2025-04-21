@@ -13,7 +13,6 @@
 #include <stdbool.h>
 #include "data_source.h"
 #include "cycling_data_model.h"
-#include "keiser_m3i_data_source.h"
 
 /**
  * @brief Initialize the data manager

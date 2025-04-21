@@ -6,7 +6,7 @@
 #include "includes/data_manager.h"
 #include "includes/cycling_data_model.h"
 #include "ant/ant_data_source.h"
-#include "includes/keiser_m3i_data_source.h"
+#include "keiser/keiser_m3i_data_source.h"
 #include "includes/ble_bridge.h"
 #include "nrf_log.h"
 #include "boards.h"

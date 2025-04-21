@@ -126,7 +126,7 @@ SRC_FILES += \
   $(PROJ_DIR)/src/data_manager.c \
   $(PROJ_DIR)/src/cycling_data_model.c \
   $(PROJ_DIR)/src/ant/ant_data_source.c \
-  $(PROJ_DIR)/src/includes/keiser_m3i_data_source.c \
+  $(PROJ_DIR)/src/keiser/keiser_m3i_data_source.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
