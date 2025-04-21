@@ -23,6 +23,7 @@ APP_TIMER_DEF(m_inactivity_timer);
 // Constants
 #define INACTIVITY_TIMEOUT_MS  20000  // 20 seconds inactivity before sleep
 #define INACTIVITY_CHECK_MS    2000   // Check inactivity every second
+#define DATA_TIMEOUT_MS        3000   // 3 seconds without data before zeroing values
 #define APP_TIMER_PRESCALER    0      // Timer prescaler value
 #define APP_TIMER_CLOCK_FREQ   32768  // Timer clock frequency in Hz
 
@@ -41,13 +42,33 @@ static uint32_t ticks_to_ms(uint32_t ticks) {
 
 // Function to handle BLE timer expiration
 static void ble_update_timer_handler(void * p_context) {
-    if (!m_data_ready || !m_bridge_active) {
+    if (!m_bridge_active) {
         return;
     }
 
     #if defined(DEBUG) && !defined(RELEASE)
         bsp_board_led_invert(1);       // Toggle LED2
     #endif
+    
+    uint32_t current_time = app_timer_cnt_get();
+    uint32_t time_since_data = app_timer_cnt_diff_compute(current_time, m_last_data_timestamp);
+    time_since_data = ticks_to_ms(time_since_data);
+    
+    // If we have no data or data is stale, send zero values
+    if (!m_data_ready || time_since_data >= DATA_TIMEOUT_MS) {
+        NRF_LOG_DEBUG("BLE Bridge: No recent data, sending zero values");
+        
+        // Update Cycling Power Service
+        if (m_cps.conn_handle != BLE_CONN_HANDLE_INVALID) {
+            ble_cps_send_power_measurement(&m_cps, 0);
+        }
+
+        // Update Fitness Machine Service
+        if (m_ftms.conn_handle != BLE_CONN_HANDLE_INVALID) {
+            ble_ftms_tick(&m_ftms, 0, 0);
+        }
+        return;
+    }
     
     // Update the BLE services with the latest data
     NRF_LOG_DEBUG("BLE Bridge: Updating services with Power=%d W, Cadence=%d RPM", 
