@@ -68,4 +68,11 @@ void ble_bridge_data_source_lost(void);
  */
 void ble_bridge_reset_data_timestamp(void);
 
+/**
+ * @brief Set the ANT+ scan mode
+ * 
+ * @param enabled true to enable, false to disable
+ */
+void ble_bridge_set_ant_scan_mode(bool enabled);
+
 #endif /* BLE_BRIDGE_H */ 

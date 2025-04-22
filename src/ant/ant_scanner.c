@@ -46,8 +46,15 @@ static void scan_timer_handler(void *p_context)
     if (m_scanning_active)
     {
         NRF_LOG_INFO("Scan timeout reached, stopping scanner...");
-        ant_scanner_stop();
-        nrf_delay_ms(100);
+        m_scanning_active = false;  // Set this first to prevent re-entry
+        ant_scanner_stop();  // This will close channels and clean up
+        nrf_delay_ms(100);  // Give time for cleanup
+        
+        // Notify that scanning has stopped due to timeout
+        if (m_device_callback != NULL)
+        {
+            m_device_callback(0, 0);  // Send a special event to indicate timeout
+        }
     }
 }
 
@@ -99,6 +106,7 @@ static void scan_ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 if (err_code != NRF_SUCCESS)
                 {
                     NRF_LOG_ERROR("Failed to start scan mode: 0x%08X", err_code);
+                    m_scanning_active = false;  // Ensure we don't get stuck in scanning state
                     return;
                 }
                 
@@ -107,6 +115,7 @@ static void scan_ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
                 if (err_code != NRF_SUCCESS)
                 {
                     NRF_LOG_ERROR("Failed to start scan timer: 0x%08X", err_code);
+                    m_scanning_active = false;  // Ensure we don't get stuck in scanning state
                     return;
                 }
 
@@ -148,7 +157,7 @@ static void scan_ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context)
         case EVENT_CHANNEL_CLOSED:
         {
             NRF_LOG_INFO("ANT Scanner: Channel %u closed.", SCAN_CHANNEL_NUMBER);
-            m_scanning_active = false;
+            m_scanning_active = false;  // Ensure we're not in scanning state anymore
         }
         break;
 
@@ -287,9 +296,9 @@ uint32_t ant_scanner_start(void)
 
 void ant_scanner_stop(void)
 {
-    if (!m_scanning_active)
+    if (!m_scanning_active && !m_channels_closing)
     {
-        return;
+        return;  // Already stopped
     }
 
     // Stop the scan timeout timer
@@ -303,6 +312,7 @@ void ant_scanner_stop(void)
     }
 
     m_scanning_active = false;
+    m_channels_closing = false;
     m_device_callback = NULL;
     NRF_LOG_INFO("ANT Scanner: Stopped scanning");
 }

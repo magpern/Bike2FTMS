@@ -11,6 +11,7 @@
 #include "common_definitions.h"
 #include <stdlib.h>  // ✅ Required for rand()
 #include "ant_scanner.h"
+#include "includes/ble_bridge.h"  // ✅ Include for ble_bridge_set_ant_scan_mode
 //#include <nrf_bootloader.h>
 #include <nrf_bootloader_info.h>
 #include "nrf_power.h"
@@ -160,6 +161,9 @@ static void on_write(ble_evt_t const *p_ble_evt) {
                 memset(found_devices, 0, sizeof(found_devices));
                 num_found_devices = 0;
         
+                // Enable ANT+ scan mode in the bridge
+                ble_bridge_set_ant_scan_mode(true);
+                
                 ant_scanner_init(ant_scan_callback);  // ✅ Initialize the scanner
                 {
                     uint32_t res = ant_scanner_start();  // ✅ Start scanning
@@ -172,6 +176,7 @@ static void on_write(ble_evt_t const *p_ble_evt) {
                 scanning_active = false;
                 num_found_devices = 0;
                 ant_scanner_stop();  // ✅ Stop scanning
+                ble_bridge_set_ant_scan_mode(false);  // Disable ANT+ scan mode
                 break;
         
             case 0x03:  // 📡 Get BLE Name

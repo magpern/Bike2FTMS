@@ -31,6 +31,7 @@ APP_TIMER_DEF(m_inactivity_timer);
 static bool m_bridge_active = false;
 static bool m_data_ready = false;
 static bool m_is_connected = false;
+static bool m_ant_scan_mode = false;  // Track if we're in ANT+ scan mode
 static cycling_data_t m_latest_data;
 static uint32_t m_last_data_timestamp = 0;
 static uint32_t m_last_connection_timestamp = 0;
@@ -143,6 +144,7 @@ bool ble_bridge_init(void) {
     m_bridge_active = false;
     m_data_ready = false;
     m_is_connected = false;
+    m_ant_scan_mode = false;
     m_last_data_timestamp = 0;
     m_last_connection_timestamp = app_timer_cnt_get(); // Start counting from init
     
@@ -219,8 +221,33 @@ void ble_bridge_connection_event(bool connected) {
 
 // Function to notify the bridge that ANT+ data source has been lost
 void ble_bridge_data_source_lost(void) {
-    NRF_LOG_INFO("BLE Bridge: Data source lost, entering deep sleep");
-    enter_deep_sleep();
+    // Don't enter deep sleep if we're in ANT+ scan mode
+    if (m_ant_scan_mode) {
+        NRF_LOG_INFO("BLE Bridge: Data source lost during ANT+ scan, ignoring");
+        return;
+    }
+    
+    // If we're not connected and haven't had data for a while, enter deep sleep
+    if (!m_is_connected) {
+        uint32_t current_time = app_timer_cnt_get();
+        uint32_t time_since_data = app_timer_cnt_diff_compute(current_time, m_last_data_timestamp);
+        time_since_data = ticks_to_ms(time_since_data);
+        
+        if (time_since_data >= INACTIVITY_TIMEOUT_MS) {
+            NRF_LOG_INFO("BLE Bridge: No connection and no data for %d ms, entering deep sleep", time_since_data);
+            enter_deep_sleep();
+        } else {
+            NRF_LOG_INFO("BLE Bridge: Data source lost but within timeout period (%d ms)", time_since_data);
+        }
+    } else {
+        NRF_LOG_INFO("BLE Bridge: Data source lost but device is connected, staying awake");
+    }
+}
+
+// Function to set ANT+ scan mode
+void ble_bridge_set_ant_scan_mode(bool enabled) {
+    m_ant_scan_mode = enabled;
+    NRF_LOG_INFO("BLE Bridge: ANT+ scan mode %s", enabled ? "enabled" : "disabled");
 }
 
 void ble_bridge_reset_data_timestamp(void) {
