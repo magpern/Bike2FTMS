@@ -177,6 +177,7 @@ static void on_write(ble_evt_t const *p_ble_evt) {
                 num_found_devices = 0;
                 ant_scanner_stop();  // ✅ Stop scanning
                 ble_bridge_set_ant_scan_mode(false);  // Disable ANT+ scan mode
+                ble_bridge_reset_data_timestamp();  // Reset the data timestamp to prevent immediate sleep
                 break;
         
             case 0x03:  // 📡 Get BLE Name

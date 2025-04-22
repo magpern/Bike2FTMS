@@ -27,6 +27,7 @@ static void ant_bpwr_disp_evt_handler_filtered(ant_evt_t * p_ant_evt, void * p_c
 
 // ANT channel active flag
 static bool m_ant_active = false;
+static bool m_data_source_lost_notified = false;  // Track if we've already notified about data source loss
 
 // ANT+ restart timer
 APP_TIMER_DEF(m_ant_restart_timer);
@@ -152,14 +153,27 @@ void ant_evt_handler(ant_evt_t * p_ant_evt, void * p_context) {
     switch (p_ant_evt->event) {
         case EVENT_RX:
             m_ant_active = true;
+            m_data_source_lost_notified = false;  // Reset the notification flag when we get data
             break;
 
         case EVENT_RX_SEARCH_TIMEOUT:
+            m_ant_active = false;
+            NRF_LOG_WARNING("⚠️ ANT+ channel search timeout");
+            if (!m_data_source_lost_notified) {
+                m_data_source_lost_notified = true;
+                // Notify BLE Bridge that data source is lost
+                ble_bridge_data_source_lost();
+            }
+            break;
+
         case EVENT_CHANNEL_CLOSED:
             m_ant_active = false;
-            NRF_LOG_WARNING("⚠️ ANT+ channel closed or search timeout");
-            // Notify BLE Bridge that data source is lost
-            ble_bridge_data_source_lost();
+            NRF_LOG_WARNING("⚠️ ANT+ channel closed");
+            if (!m_data_source_lost_notified) {
+                m_data_source_lost_notified = true;
+                // Notify BLE Bridge that data source is lost
+                ble_bridge_data_source_lost();
+            }
             break;
 
         case EVENT_RX_FAIL:
@@ -190,6 +204,7 @@ static bool ant_source_init(data_source_config_t* config) {
     // Store the configuration
     m_device_id = config->device_id;
     m_data_callback = config->data_callback;
+    m_data_source_lost_notified = false;  // Reset notification flag on init
     
     // Create the ANT+ restart timer
     err_code = app_timer_create(&m_ant_restart_timer, APP_TIMER_MODE_SINGLE_SHOT, ant_restart_timer_handler);
@@ -256,6 +271,7 @@ static bool ant_source_start(void) {
     }
     
     m_ant_active = true;
+    m_data_source_lost_notified = false;  // Reset notification flag on start
     NRF_LOG_INFO("✅ ant_bpwr_disp_open SUCCESS!");
     
     return true;
@@ -274,6 +290,7 @@ static void ant_source_stop(void) {
     }
     
     m_ant_active = false;
+    m_data_source_lost_notified = false;  // Reset notification flag on stop
 }
 
 /**
